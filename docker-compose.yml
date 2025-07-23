@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  globegenius-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: globegenius-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGODB_URI=mongodb://globegenius-mongodb:27017/globegenius
+      - REDIS_URL=redis://globegenius-redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}
+      - SENDGRID_FROM_NAME=${SENDGRID_FROM_NAME}
+      - FLIGHT_API_URL=${FLIGHT_API_URL}
+      - FLIGHT_API_KEY=${FLIGHT_API_KEY}
+      - GEMINI_API_ENDPOINT=${GEMINI_API_ENDPOINT}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - GPT_API_ENDPOINT=${GPT_API_ENDPOINT}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - globegenius-mongodb
+      - globegenius-redis
+    networks:
+      - globegenius-network
+    volumes:
+      - ./server/templates:/app/templates:ro
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend React App Service
+  globegenius-frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: globegenius-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - globegenius-backend
+    networks:
+      - globegenius-network
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001/api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MongoDB Database
+  globegenius-mongodb:
+    image: mongo:7.0
+    container_name: globegenius-mongodb
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-password123}
+      - MONGO_INITDB_DATABASE=globegenius
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - globegenius-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis Cache
+  globegenius-redis:
+    image: redis:7.2-alpine
+    container_name: globegenius-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    networks:
+      - globegenius-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MongoDB Admin Interface (optional)
+  mongo-express:
+    image: mongo-express:1.0.0
+    container_name: globegenius-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=${MONGO_ROOT_USERNAME:-admin}
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=${MONGO_ROOT_PASSWORD:-password123}
+      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-password123}@globegenius-mongodb:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGOEXPRESS_LOGIN:-admin}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGOEXPRESS_PASSWORD:-admin123}
+    depends_on:
+      - globegenius-mongodb
+    networks:
+      - globegenius-network
+    profiles:
+      - tools
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  globegenius-network:
+    driver: bridge 

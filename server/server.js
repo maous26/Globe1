@@ -50,8 +50,10 @@ const userRoutes = require('./routes/user.routes');
 const alertRoutes = require('./routes/alert.routes');
 const adminRoutes = require('./routes/admin.routes');
 const flightRoutes = require('./routes/flight.routes');
+const healthRoutes = require('./routes/health.routes');
 
 // API routes
+app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/alerts', alertRoutes);
