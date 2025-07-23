@@ -1,0 +1,46 @@
+{
+    "name": "globegenius-server",
+    "version": "1.0.0",
+    "description": "Backend pour l'application GlobeGenius de détection des vols à prix réduits",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "nodemon server.js",
+        "seed": "node scripts/seedDatabase.js",
+        "scan-routes": "node scripts/manualRouteScan.js",
+        "test": "jest"
+    },
+    "keywords": [
+        "flight",
+        "deals",
+        "travel",
+        "alerts",
+        "api"
+    ],
+    "author": "GlobeGenius",
+    "license": "ISC",
+    "dependencies": {
+        "@sendgrid/mail": "^7.7.0",
+        "axios": "^1.4.0",
+        "bcryptjs": "^2.4.3",
+        "cors": "^2.8.5",
+        "csv-parser": "^3.0.0",
+        "dotenv": "^16.6.1",
+        "express": "^4.18.2",
+        "express-validator": "^7.0.1",
+        "handlebars": "^4.7.7",
+        "ioredis": "^5.3.2",
+        "jsonwebtoken": "^9.0.1",
+        "mongoose": "^7.4.2",
+        "node-cron": "^3.0.2",
+        "path": "^0.12.7"
+    },
+    "devDependencies": {
+        "jest": "^29.6.2",
+        "nodemon": "^3.0.1",
+        "supertest": "^6.3.3"
+    },
+    "engines": {
+        "node": ">=14.0.0"
+    }
+}

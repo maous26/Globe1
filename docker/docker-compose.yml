@@ -1,0 +1,84 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # MongoDB service
+  mongo:
+    image: mongo:latest
+    container_name: globegenius-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - globegenius-network
+
+  # Redis service
+  redis:
+    image: redis:alpine
+    container_name: globegenius-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - globegenius-network
+
+  # Backend API service
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: globegenius-server
+    restart: always
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+      - redis
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongo:27017/globegenius
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your_jwt_secret
+      - SENDGRID_API_KEY=your_sendgrid_api_key
+      - EMAIL_FROM=contact@globegenius.com
+      - FLIGHT_API_URL=your_flight_api_url
+      - FLIGHT_API_KEY=your_flight_api_key
+      - GEMINI_API_ENDPOINT=your_gemini_api_endpoint
+      - GEMINI_API_KEY=your_gemini_api_key
+      - GPT_API_ENDPOINT=your_gpt_api_endpoint
+      - GPT_API_KEY=your_gpt_api_key
+    volumes:
+      - ./server:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - globegenius-network
+
+  # Frontend client service
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: globegenius-client
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    volumes:
+      - ./client:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - globegenius-network
+
+networks:
+  globegenius-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  redis-data:

@@ -1,0 +1,63 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bienvenue sur GlobeGenius</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { text-align: center; padding: 20px 0; }
+    .logo { max-width: 150px; }
+    .content { padding: 20px; background: #f9f9f9; border-radius: 5px; }
+    .footer { text-align: center; font-size: 12px; color: #999; padding: 20px 0; }
+    .button { display: inline-block; padding: 10px 20px; background: #4A90E2; color
+    // server/services/email/emailService.js (suite)
+    .button { display: inline-block; padding: 10px 20px; background: #4A90E2; color: white; text-decoration: none; border-radius: 5px; }
+    .highlight { background: #f0f7ff; border-left: 4px solid #4A90E2; padding: 15px; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://[YOUR-LOGO-URL]" alt="GlobeGenius" class="logo">
+      <h1>Bienvenue sur GlobeGenius !</h1>
+    </div>
+    <div class="content">
+      <p>Bonjour {{firstName}},</p>
+      <p>Merci de vous être inscrit à GlobeGenius, votre nouvel allié pour découvrir les meilleurs vols au départ de la France !</p>
+      
+      <div class="highlight">
+        <h3>Comment ça marche ?</h3>
+        <p>Nous analysons en permanence les tarifs aériens et vous alertons dès qu'une offre exceptionnelle correspond à vos critères.</p>
+      </div>
+      
+      {{#if setupLink}}
+      <p>Pour finaliser votre inscription, veuillez configurer votre mot de passe :</p>
+      <p style="text-align: center;">
+        <a href="{{setupLink}}" class="button">Configurer mon compte</a>
+      </p>
+      {{/if}}
+      
+      {{#if isPremium}}
+      <div class="highlight">
+        <h3>Votre compte Premium est activé !</h3>
+        <p>Profitez d'un nombre illimité d'alertes et accédez aux réductions allant jusqu'à 90% !</p>
+      </div>
+      {{else}}
+      <p>Vous bénéficiez actuellement du forfait gratuit (3 alertes/jour, réductions jusqu'à 50%).</p>
+      <p>Pour recevoir toutes les alertes sans limite et accéder aux réductions allant jusqu'à 90%, pensez à passer à la <a href="https://[YOUR-DOMAIN]/upgrade">version Premium</a> !</p>
+      {{/if}}
+      
+      <p>À très bientôt pour vos premières alertes de voyage !</p>
+      <p>L'équipe GlobeGenius</p>
+    </div>
+    <div class="footer">
+      <p>© 2025 GlobeGenius. Tous droits réservés.</p>
+      <p>Si vous avez des questions, contactez-nous à contact@globegenius.com</p>
+    </div>
+  </div>
+</body>
+</html>
+      
