@@ -34,6 +34,50 @@ exports.getDashboardData = async (req, res) => {
       createdAt: { $gte: new Date().setHours(0, 0, 0, 0) }
     });
     
+    // Calculate changes from last month
+    const lastMonthStart = new Date();
+    lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
+    lastMonthStart.setHours(0, 0, 0, 0);
+    
+    const thisMonthStart = new Date();
+    thisMonthStart.setDate(1);
+    thisMonthStart.setHours(0, 0, 0, 0);
+    
+    // Get last month data for comparison
+    const lastMonthUsers = await User.countDocuments({
+      createdAt: { $lt: thisMonthStart }
+    });
+    const lastMonthPremiumUsers = await User.countDocuments({
+      subscriptionType: 'premium',
+      createdAt: { $lt: thisMonthStart }
+    });
+    const lastMonthActiveRoutes = await Route.countDocuments({
+      isActive: true,
+      createdAt: { $lt: thisMonthStart }
+    });
+    
+    // Calculate yesterday alerts for comparison
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    const dayAfterYesterday = new Date(yesterday);
+    dayAfterYesterday.setDate(dayAfterYesterday.getDate() + 1);
+    
+    const yesterdayAlerts = await Alert.countDocuments({
+      createdAt: { $gte: yesterday, $lt: dayAfterYesterday }
+    });
+    
+    // Calculate percentage changes
+    const calculateChange = (current, previous) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous * 100).toFixed(1);
+    };
+    
+    const userChange = calculateChange(totalUsers, lastMonthUsers);
+    const premiumUserChange = calculateChange(premiumUsers, lastMonthPremiumUsers);
+    const routeChange = calculateChange(activeRoutes, lastMonthActiveRoutes);
+    const alertChange = calculateChange(todayAlerts, yesterdayAlerts);
+    
     // Get API quota
     const apiQuota = await checkApiQuota();
     
@@ -90,7 +134,8 @@ exports.getDashboardData = async (req, res) => {
         total: totalUsers,
         premium: premiumUsers,
         free: freeUsers,
-        conversionRate: totalUsers > 0 ? (premiumUsers / totalUsers * 100).toFixed(1) : 0
+        conversionRate: totalUsers > 0 ? (premiumUsers / totalUsers * 100).toFixed(1) : 0,
+        change: userChange
       },
       routes: {
         total: totalRoutes,
@@ -99,12 +144,17 @@ exports.getDashboardData = async (req, res) => {
           ultraPriority: ultraPriorityRoutes,
           priority: priorityRoutes,
           complementary: complementaryRoutes
-        }
+        },
+        change: routeChange
       },
       alerts: {
         total: totalAlerts,
         today: todayAlerts,
-        daily: dailyAlerts
+        daily: dailyAlerts,
+        change: alertChange
+      },
+      premium: {
+        change: premiumUserChange
       },
       api: {
         quota: apiQuota,

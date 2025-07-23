@@ -63,28 +63,28 @@ const AdminDashboard = () => {
       value: dashboardData?.users?.total || 0,
       icon: Users,
       color: 'bg-blue-500',
-      change: '+12%'
+      change: dashboardData?.users?.change ? `${dashboardData.users.change > 0 ? '+' : ''}${dashboardData.users.change}%` : '0%'
     },
     {
       label: 'Utilisateurs Premium',
       value: dashboardData?.users?.premium || 0,
       icon: DollarSign,
       color: 'bg-green-500',
-      change: '+8%'
+      change: dashboardData?.premium?.change ? `${dashboardData.premium.change > 0 ? '+' : ''}${dashboardData.premium.change}%` : '0%'
     },
     {
       label: 'Routes Actives',
       value: dashboardData?.routes?.active || 0,
       icon: Plane,
       color: 'bg-purple-500',
-      change: '+5%'
+      change: dashboardData?.routes?.change ? `${dashboardData.routes.change > 0 ? '+' : ''}${dashboardData.routes.change}%` : '0%'
     },
     {
       label: 'Alertes Aujourd\'hui',
       value: dashboardData?.alerts?.today || 0,
       icon: Bell,
       color: 'bg-orange-500',
-      change: '+15%'
+      change: dashboardData?.alerts?.change ? `${dashboardData.alerts.change > 0 ? '+' : ''}${dashboardData.alerts.change}%` : '0%'
     }
   ];
 
@@ -103,8 +103,14 @@ const AdminDashboard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600">{stat.label}</p>
                 <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-sm text-green-600 mt-1">
-                  <TrendingUp className="inline h-4 w-4 mr-1" />
+                <p className={`text-sm mt-1 ${
+                  stat.change.startsWith('+') ? 'text-green-600' : 
+                  stat.change.startsWith('-') ? 'text-red-600' : 
+                  'text-gray-600'
+                }`}>
+                  <TrendingUp className={`inline h-4 w-4 mr-1 ${
+                    stat.change.startsWith('-') ? 'rotate-180' : ''
+                  }`} />
                   {stat.change} ce mois
                 </p>
               </div>
