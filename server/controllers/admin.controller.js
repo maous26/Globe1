@@ -357,10 +357,10 @@ exports.getRoutes = async (req, res) => {
  */
 exports.updateRoute = async (req, res) => {
   try {
-    const { routeId } = req.params;
+    const { id } = req.params;
     const { tier, scanFrequency, isActive } = req.body;
     
-    if (!routeId) {
+    if (!id) {
       return res.status(400).json({ message: 'ID route requis' });
     }
     
@@ -382,7 +382,7 @@ exports.updateRoute = async (req, res) => {
     
     // Update route
     const route = await Route.findByIdAndUpdate(
-      routeId,
+      id,
       updateData,
       { new: true }
     );
@@ -478,22 +478,42 @@ exports.getAlerts = async (req, res) => {
       { $limit: 10 }
     ]);
     
+    // Format status stats for easier frontend use
+    const statusSummary = {
+      sent: 0,
+      clicked: 0,
+      expired: 0
+    };
+    statusStats.forEach(stat => {
+      if (stat._id && statusSummary.hasOwnProperty(stat._id)) {
+        statusSummary[stat._id] = stat.count;
+      }
+    });
+    
+    // Calculate pagination info
+    const totalPages = Math.ceil(total / limit);
+    
     res.status(200).json({
+      success: true,
       alerts,
       pagination: {
+        currentPage: page,
+        totalPages,
         total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit)
+        limit
       },
-      stats: {
-        byStatus: statusStats,
-        byAirline: airlineStats
+      summary: {
+        status: statusSummary,
+        airlines: airlineStats
       }
     });
   } catch (error) {
-    console.error('Error getting alerts:', error);
-    res.status(500).json({ message: 'Erreur serveur lors de la récupération des alertes' });
+    console.error('Error fetching alerts:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur serveur lors de la récupération des alertes',
+      error: error.message 
+    });
   }
 };
 
@@ -708,5 +728,63 @@ exports.triggerRouteOptimization = async (req, res) => {
   } catch (error) {
     console.error('Error triggering route optimization:', error);
     res.status(500).json({ message: 'Erreur serveur lors de l\'optimisation des routes' });
+  }
+};
+
+/**
+ * Get user details by ID
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ */
+exports.getUserDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findById(id)
+      .select('-password')
+      .populate('alerts', null, null, { limit: 10, sort: { createdAt: -1 } });
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Utilisateur non trouvé' 
+      });
+    }
+    
+    // Get user's alert statistics
+    const alertStats = await Alert.aggregate([
+      { $match: { user: user._id } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    const formattedStats = {
+      sent: 0,
+      clicked: 0,
+      expired: 0
+    };
+    
+    alertStats.forEach(stat => {
+      if (formattedStats.hasOwnProperty(stat._id)) {
+        formattedStats[stat._id] = stat.count;
+      }
+    });
+    
+    res.status(200).json({
+      success: true,
+      user,
+      alertStats: formattedStats
+    });
+  } catch (error) {
+    console.error('Error getting user details:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur serveur lors de la récupération des détails utilisateur',
+      error: error.message 
+    });
   }
 };

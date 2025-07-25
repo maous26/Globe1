@@ -27,57 +27,95 @@ const RouteManagement = () => {
   const [optimizationLoading, setOptimizationLoading] = useState(false);
   const [optimizationResult, setOptimizationResult] = useState(null);
 
+  // Modified useEffect to properly handle pagination changes
   useEffect(() => {
     fetchRoutes();
-  }, [pagination.page, filters]);
+  }, [pagination.page, pagination.limit, filters, searchTerm]);
+
+  // Auto-refresh routes every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading && !showOptimization) {
+        console.log('🔄 Auto-refreshing routes...');
+        fetchRoutes();
+      }
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [loading, showOptimization]);
 
   const fetchRoutes = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Build parameters object
-      const params = {
+      console.log('Fetching routes with params:', {
         page: pagination.page,
         limit: pagination.limit,
-        search: searchTerm
-      };
+        search: searchTerm,
+        tier: filters.tier,
+        isActive: filters.isActive
+      });
       
-      if (filters.tier) {
-        params.tier = filters.tier;
-      }
-      
-      if (filters.isActive !== null) {
-        params.isActive = filters.isActive;
-      }
-      
-      const response = await adminAPI.getRoutes(params);
+      // Call API with individual parameters as expected by the service
+      const response = await adminAPI.getRoutes(
+        pagination.page,
+        pagination.limit,
+        searchTerm,
+        filters.tier,
+        filters.isActive !== null ? filters.isActive.toString() : '',
+        '' // isSeasonal parameter
+      );
       const data = response.data;
       setRoutes(data.routes);
-      setPagination({
-        ...pagination,
+      setPagination(prev => ({
+        ...prev,
         page: data.pagination.page,
         total: data.pagination.total,
         pages: data.pagination.pages
-      });
+      }));
       setStats(data.stats);
       
       setLoading(false);
     } catch (err) {
       console.error('Error fetching routes:', err);
-      setError(err.message || 'Une erreur est survenue');
+      
+      // Better error handling for different types of errors
+      let errorMessage = 'Une erreur est survenue';
+      
+      if (err.response) {
+        // Server responded with error status
+        errorMessage = `Erreur serveur (${err.response.status}): ${err.response.data?.message || err.message}`;
+        console.error('API Response error:', err.response.data);
+      } else if (err.request) {
+        // Network error - no response received
+        errorMessage = 'Erreur de connexion - impossible de contacter le serveur';
+        console.error('Network error:', err.request);
+      } else {
+        // Other error
+        errorMessage = err.message || 'Une erreur inconnue est survenue';
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };
 
   const handleSearch = () => {
-    setPagination({ ...pagination, page: 1 });
-    fetchRoutes();
+    setPagination(prev => ({ ...prev, page: 1 }));
+    // fetchRoutes will be triggered by useEffect
   };
 
   const handleFilterChange = (filter, value) => {
     setFilters({ ...filters, [filter]: value });
-    setPagination({ ...pagination, page: 1 });
+    setPagination(prev => ({ ...prev, page: 1 }));
+    // fetchRoutes will be triggered by useEffect
+  };
+
+  const handlePageChange = (newPage) => {
+    console.log('Changing page to:', newPage);
+    setPagination(prev => ({ ...prev, page: newPage }));
+    // fetchRoutes will be triggered by useEffect
   };
 
   const startEditing = (route) => {
@@ -95,22 +133,12 @@ const RouteManagement = () => {
 
   const saveRouteChanges = async () => {
     try {
-      // In a real app, this would be an actual API call
-      const response = await fetch(`/api/admin/routes/${editingRoute._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          tier: editingRoute.newTier,
-          scanFrequency: editingRoute.newScanFrequency,
-          isActive: editingRoute.newIsActive
-        })
+      // Use the proper API service
+      await adminAPI.updateRoute(editingRoute._id, {
+        tier: editingRoute.newTier,
+        scanFrequency: editingRoute.newScanFrequency,
+        isActive: editingRoute.newIsActive
       });
-      
-      if (!response.ok) {
-        throw new Error('Erreur lors de la mise à jour de la route');
-      }
       
       // Update the route in the list
       setRoutes(routes.map(route => 
@@ -329,8 +357,26 @@ const RouteManagement = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Gestion des routes</h1>
               <p className="text-gray-600">Gérer les routes de surveillance des vols</p>
+              {process.env.NODE_ENV === 'development' && (
+                <p className="text-xs text-blue-600 mt-1">
+                  API: {process.env.REACT_APP_API_URL || 'http://localhost:3001/api'} | 
+                  Page: {pagination.page} | Total: {pagination.total}
+                </p>
+              )}
             </div>
             <div className="flex space-x-4">
+              <button 
+                onClick={fetchRoutes}
+                disabled={loading}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {loading ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Actualiser
+              </button>
               <button 
                 onClick={() => setShowOptimization(true)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 flex items-center"
@@ -610,10 +656,12 @@ const RouteManagement = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-col">
                             <span className="text-sm text-gray-900">
-                              {route.successRate}% de succès
+                              {route.totalScans > 0 
+                                ? Math.round((route.totalDealsFound || 0) / route.totalScans * 100)
+                                : 0}% de succès
                             </span>
                             <span className="text-xs text-gray-500">
-                              {route.totalDealsFound} deals sur {route.totalScans} scans
+                              {route.totalDealsFound || 0} deals sur {route.totalScans || 0} scans
                             </span>
                           </div>
                         </td>
@@ -657,7 +705,7 @@ const RouteManagement = () => {
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })}
+                onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
                 disabled={pagination.page <= 1}
                 className="px-3 py-2 rounded-md bg-white shadow disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -667,7 +715,7 @@ const RouteManagement = () => {
                 Page {pagination.page} sur {pagination.pages}
               </span>
               <button
-                onClick={() => setPagination({ ...pagination, page: Math.min(pagination.pages, pagination.page + 1) })}
+                onClick={() => handlePageChange(Math.min(pagination.pages, pagination.page + 1))}
                 disabled={pagination.page >= pagination.pages}
                 className="px-3 py-2 rounded-md bg-white shadow disabled:opacity-50 disabled:cursor-not-allowed"
               >

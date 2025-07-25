@@ -14,19 +14,32 @@ const AdminDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
+  // Fetch data on mount and set up auto-refresh
   useEffect(() => {
     fetchDashboardData();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError('');
+      console.log('🔄 Fetching dashboard data...');
       const response = await adminAPI.getDashboardStats();
       setDashboardData(response.data);
+      setLastUpdated(new Date());
+      console.log('✅ Dashboard data updated:', response.data);
     } catch (err) {
       setError('Erreur lors du chargement des données');
-      console.error('Error fetching dashboard data:', err);
+      console.error('❌ Error fetching dashboard data:', err);
     } finally {
       setLoading(false);
     }
@@ -90,9 +103,28 @@ const AdminDashboard = () => {
 
   return (
     <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrateur</h1>
-        <p className="text-gray-600 mt-2">Vue d'ensemble des statistiques de GlobeGenius</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrateur</h1>
+          <p className="text-gray-600 mt-2">Vue d'ensemble des statistiques de GlobeGenius</p>
+          {lastUpdated && (
+            <p className="text-xs text-gray-500 mt-1">
+              Dernière mise à jour: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={fetchDashboardData}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+        >
+          {loading ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+          ) : (
+            <Activity className="h-4 w-4 mr-2" />
+          )}
+          Actualiser
+        </button>
       </div>
 
       {/* Stats Cards */}

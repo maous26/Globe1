@@ -20,16 +20,31 @@ const UserManagement = () => {
     fetchUsers(pagination.page);
   }, [pagination.page]);
 
+  // Auto-refresh every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading && !isUpdating) {
+        console.log('🔄 Auto-refreshing users...');
+        fetchUsers(pagination.page, searchTerm);
+      }
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [loading, isUpdating, pagination.page, searchTerm]);
+
   const fetchUsers = async (page = 1, search = '') => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await adminAPI.getUsers({
+      console.log('🔄 Fetching users...', { page, limit: pagination.limit, search });
+      
+      const response = await adminAPI.getUsers(
         page,
-        limit: pagination.limit,
-        search
-      });
+        pagination.limit,
+        search,
+        '' // subscriptionType filter
+      );
       
       const data = response.data;
       setUsers(data.users);
@@ -68,21 +83,10 @@ const UserManagement = () => {
     try {
       setIsUpdating(true);
       
-      // In a real app, this would be an actual API call
-      const response = await fetch('/api/admin/users/subscription', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId,
-          subscriptionType: newType
-        })
-      });
+      console.log('🔄 Updating user subscription:', { userId, newType });
       
-      if (!response.ok) {
-        throw new Error('Erreur lors de la mise à jour de l\'abonnement');
-      }
+      // Use the proper API service
+      await adminAPI.updateUserSubscription(userId, newType);
       
       // Update the user in the list
       setUsers(users.map(user => 
@@ -142,12 +146,26 @@ const UserManagement = () => {
           <h1 className="text-2xl font-bold text-gray-800">Gestion des utilisateurs</h1>
           <p className="text-gray-600">Gérer les abonnements et les informations utilisateur</p>
         </div>
-        <a 
-          href="/admin/dashboard" 
-          className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-        >
-          ← Retour au tableau de bord
-        </a>
+        <div className="flex space-x-4">
+          <button
+            onClick={() => fetchUsers(pagination.page, searchTerm)}
+            disabled={loading}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            {loading ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Actualiser
+          </button>
+          <a 
+            href="/admin/dashboard" 
+            className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+          >
+            ← Retour au tableau de bord
+          </a>
+        </div>
       </div>
 
       {/* Search and Filters */}

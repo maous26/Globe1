@@ -90,6 +90,12 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(credentials);
       const { token, user } = response.data;
       
+      console.log('🔐 Login successful:', { 
+        email: user.email, 
+        isAdmin: user.isAdmin, 
+        subscriptionType: user.subscriptionType 
+      });
+      
       // Set auth data
       setAuth(token, user);
       setUser(user);
@@ -162,7 +168,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is admin
   const checkIsAdmin = () => {
-    return isAdmin();
+    return user && user.isAdmin === true;
   };
 
   // Check if user has premium subscription

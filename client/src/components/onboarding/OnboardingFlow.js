@@ -48,10 +48,14 @@ const OnboardingFlow = ({ onComplete, existingUser }) => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      console.log('🔄 Submitting onboarding data:', formData);
       await updateProfile(formData);
+      console.log('✅ Onboarding completed successfully');
       onComplete();
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('❌ Error updating profile:', error);
+      // You could add a state for error display here if needed
+      alert('Erreur lors de la mise à jour du profil. Veuillez réessayer.');
     } finally {
       setIsSubmitting(false);
     }

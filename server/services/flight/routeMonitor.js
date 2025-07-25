@@ -9,25 +9,41 @@ const { validateDeal } = require('../ai/dealValidationService');
 const { sendAlertEmail } = require('../email/emailService');
 const { incrementApiCallStats, getTodayStats } = require('../analytics/statsService');
 
-// Configuration du quota mensuel
+// Configuration du quota mensuel selon la stratégie 3-tiers
 const MONTHLY_API_QUOTA = 30000;
-const DAILY_API_LIMIT = Math.floor(MONTHLY_API_QUOTA / 30); // ~1000 appels/jour
+const DAILY_API_LIMIT = Math.floor(MONTHLY_API_QUOTA / 30); // 1000 appels/jour
 
-// Fréquences de scan ajustées pour respecter le quota
-const TIER_SCAN_FREQUENCY = {
-  'ultra-priority': 8,   // 8 fois par jour pour CDG/ORY routes populaires
-  'priority': 4,         // 4 fois par jour pour autres routes importantes  
-  'standard': 2,         // 2 fois par jour pour routes secondaires
-  'low': 1              // 1 fois par jour pour routes moins populaires
+// Allocation API par tiers (stratégie exacte utilisateur)
+const API_ALLOCATION = {
+  tier1: { percentage: 50, dailyCalls: 500, tier: 'ultra-priority' },    // 50% = 15,000/mois
+  tier2: { percentage: 35, dailyCalls: 350, tier: 'priority' },          // 35% = 10,500/mois  
+  tier3: { percentage: 15, dailyCalls: 150, tier: 'complementary' }      // 15% = 4,500/mois
 };
 
-// Seuils de réduction pour les alertes
-const MIN_DISCOUNT_FREE = 30;    // 30% minimum pour utilisateurs gratuits
-const MIN_DISCOUNT_PREMIUM = 0;   // Toute réduction pour premium
-const MAX_DISCOUNT_FREE = 50;     // 50% maximum pour utilisateurs gratuits
+// Seuils de réduction pour valider les bonnes affaires par tiers
+const DISCOUNT_THRESHOLDS = {
+  'ultra-priority': 15,  // 15% minimum pour long-courrier
+  'priority': 20,        // 20% pour Europe
+  'complementary': 25    // 25% pour domestique
+};
 
-// Limite d'alertes quotidiennes
-const MAX_ALERTS_FREE = 3;
+// Rotation intelligente : 70% top routes, 30% rotation aléatoire
+const ROTATION_STRATEGY = {
+  topRoutesPercentage: 70,
+  randomRotationPercentage: 30,
+  topRoutesCount: 10  // Top 10 par tier
+};
+
+// Optimisation saisonnelle
+const SEASONAL_MULTIPLIERS = {
+  highSeason: { months: [6, 7, 8, 11, 12], multiplier: 1.3 },  // Été + fins d'année
+  lowSeason: { months: [1, 2, 3, 9, 10], multiplier: 0.8 },    // Hiver + automne
+  normalSeason: { months: [4, 5], multiplier: 1.0 }            // Printemps
+};
+
+let isMonitoringActive = false;
+let dailyApiCallCount = 0;
+let lastOptimizationDate = null;
 
 /**
  * Initialiser les routes avec la stratégie optimisée
@@ -233,214 +249,420 @@ exports.initializeRoutes = async () => {
 };
 
 /**
- * Vérifier le quota d'API avant de scanner
+ * Démarre le monitoring des routes avec la stratégie 3-tiers optimisée
  */
-async function checkApiQuotaBeforeScanning() {
+exports.startRouteMonitoring = async () => {
   try {
-    const todayStats = await getTodayStats();
-    const remainingToday = DAILY_API_LIMIT - todayStats.totalCalls;
-    
-    if (remainingToday <= 0) {
-      console.log('⚠️ Quota API quotidien atteint. Scan suspendu jusqu\'à demain.');
-      return false;
+    if (isMonitoringActive) {
+      console.log('🔄 Le monitoring des routes est déjà actif');
+      return;
     }
-    
-    if (remainingToday < 100) {
-      console.log(`⚠️ Quota API faible: ${remainingToday} appels restants aujourd'hui`);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Erreur lors de la vérification du quota:', error);
-    return true; // Continuer en cas d'erreur
-  }
-}
 
-/**
- * Planifier la surveillance des routes avec cron
- */
-exports.scheduleRouteMonitoring = async () => {
-  try {
-    // Initialiser les routes si nécessaire
-    await exports.initializeRoutes();
+    console.log('🚀 Démarrage du monitoring intelligent des routes 3-tiers...');
     
-    // Ultra-priorité: Toutes les 3 heures (8 fois/jour)
-    cron.schedule('0 */3 * * *', async () => {
-      if (await checkApiQuotaBeforeScanning()) {
-        console.log('🔍 Scan ultra-prioritaire...');
-        await monitorRoutesByTier('ultra-priority');
-      }
+    // Test initial pour vérifier la connectivité
+    await this.performInitialTest();
+    
+    // Lancement du monitoring par tiers
+    await this.scheduleMonitoringByTier();
+    
+    // Optimisation quotidienne à 02:00
+    cron.schedule('0 2 * * *', () => {
+      this.optimizeRoutesDaily();
     });
     
-    // Priorité: Toutes les 6 heures (4 fois/jour)
-    cron.schedule('0 */6 * * *', async () => {
-      if (await checkApiQuotaBeforeScanning()) {
-        console.log('🔍 Scan prioritaire...');
-        await monitorRoutesByTier('priority');
-      }
+    // Reset compteur quotidien à minuit
+    cron.schedule('0 0 * * *', () => {
+      dailyApiCallCount = 0;
+      console.log('🌅 Reset du compteur API quotidien');
     });
     
-    // Standard: Toutes les 12 heures (2 fois/jour)
-    cron.schedule('0 */12 * * *', async () => {
-      if (await checkApiQuotaBeforeScanning()) {
-        console.log('🔍 Scan standard...');
-        await monitorRoutesByTier('standard');
-      }
-    });
+    isMonitoringActive = true;
+    console.log('✅ Monitoring des routes 3-tiers démarré avec succès');
     
-    // Low: Une fois par jour à 3h du matin
-    cron.schedule('0 3 * * *', async () => {
-      if (await checkApiQuotaBeforeScanning()) {
-        console.log('🔍 Scan low priority...');
-        await monitorRoutesByTier('low');
-      }
-    });
-    
-    // Optimisation quotidienne à 2h du matin
-    cron.schedule('0 2 * * *', async () => {
-      console.log('🔧 Optimisation quotidienne des routes...');
-      await optimizeRoutesDaily();
-    });
-    
-    // Rapport de santé toutes les heures
-    cron.schedule('0 * * * *', async () => {
-      await logApiUsageStatus();
-    });
-    
-    console.log('✅ Surveillance des routes planifiée avec succès');
   } catch (error) {
-    console.error('Erreur lors de la planification de la surveillance:', error);
+    console.error('❌ Erreur lors du démarrage du monitoring:', error);
+    throw error;
   }
 };
 
 /**
- * Surveiller les routes par niveau de priorité
+ * Test initial de connectivité et configuration
  */
-async function monitorRoutesByTier(tier) {
+exports.performInitialTest = async () => {
   try {
-    const routes = await Route.find({ tier, isActive: true });
-    console.log(`Surveillance de ${routes.length} routes ${tier}`);
+    console.log('🧪 Test initial du système de monitoring...');
     
-    for (const route of routes) {
-      await processRoute(route);
-      
-      // Pause entre les requêtes pour éviter la surcharge
-      await new Promise(resolve => setTimeout(resolve, 1000)); // 1 seconde
-    }
-  } catch (error) {
-    console.error(`Erreur lors de la surveillance ${tier}:`, error);
-  }
-}
-
-/**
- * Traiter une route spécifique
- */
-async function processRoute(route) {
-  try {
-    console.log(`✈️ ${route.departureAirport.code} → ${route.destinationAirport.code}`);
+    // Vérifier les routes en base
+    const routeCount = await Route.countDocuments();
+    const tierStats = await Route.aggregate([
+      { $group: { _id: '$tier', count: { $sum: 1 } } }
+    ]);
     
-    // Mettre à jour le timestamp
-    await Route.findByIdAndUpdate(route._id, {
-      lastScannedAt: new Date(),
-      $inc: { totalScans: 1 }
+    console.log(`📊 ${routeCount} routes trouvées:`);
+    tierStats.forEach(stat => {
+      console.log(`  ${stat._id}: ${stat.count} routes`);
     });
     
-    // Incrémenter les stats
-    await incrementApiCallStats(
-      'flightSearch', 
-      `${route.departureAirport.code}-${route.destinationAirport.code}`
-    );
+    // Test API GoFlightLabs avec une route de test
+    const testRoute = await Route.findOne({ tier: 'ultra-priority' });
+    if (testRoute) {
+      console.log('🧪 Test API flight avec route:', 
+        `${testRoute.departureAirport.code} → ${testRoute.destinationAirport.code}`);
+      
+      // Test non-bloquant
+      try {
+        await flightService.searchFlights(
+          testRoute.departureAirport.code,
+          testRoute.destinationAirport.code,
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // +7 jours
+        );
+        console.log('✅ API GoFlightLabs connectée');
+      } catch (apiError) {
+        console.warn('⚠️  API GoFlightLabs indisponible, monitoring continuera:', apiError.message);
+      }
+    }
     
-    // Dates de recherche (14 jours dans le futur pour avoir des prix intéressants)
-    const searchDate = new Date();
-    searchDate.setDate(searchDate.getDate() + 14);
-    const returnDate = new Date(searchDate);
-    returnDate.setDate(returnDate.getDate() + 7);
+    console.log('✅ Test initial terminé');
     
-    // Rechercher des vols aller-retour
+  } catch (error) {
+    console.error('❌ Erreur test initial:', error);
+    throw error;
+  }
+};
+
+/**
+ * Planification du monitoring par tiers avec fréquences adaptées
+ */
+exports.scheduleMonitoringByTier = async () => {
+  console.log('📅 Planification du monitoring par tiers...');
+  
+  // Tier 1 (Ultra-priority) - Toutes les 3h (8 fois/jour)
+  cron.schedule('0 */3 * * *', () => {
+    this.monitorRoutesByTier('ultra-priority', API_ALLOCATION.tier1.dailyCalls / 8);
+  });
+  
+  // Tier 2 (Priority) - Toutes les 6h (4 fois/jour)  
+  cron.schedule('0 */6 * * *', () => {
+    this.monitorRoutesByTier('priority', API_ALLOCATION.tier2.dailyCalls / 4);
+  });
+  
+  // Tier 3 (Complementary) - Toutes les 12h (2 fois/jour)
+  cron.schedule('0 */12 * * *', () => {
+    this.monitorRoutesByTier('complementary', API_ALLOCATION.tier3.dailyCalls / 2);
+  });
+  
+  console.log('✅ Monitoring planifié pour tous les tiers');
+};
+
+/**
+ * Monitoring des routes par tier avec rotation intelligente
+ */
+exports.monitorRoutesByTier = async (tier, maxCallsForSession) => {
+  try {
+    if (dailyApiCallCount >= DAILY_API_LIMIT) {
+      console.log(`⚠️  Limite API quotidienne atteinte (${dailyApiCallCount}/${DAILY_API_LIMIT})`);
+      return;
+    }
+    
+    console.log(`🔍 Monitoring ${tier} (max ${maxCallsForSession} calls)`);
+    
+    // Récupération des routes du tier avec performance
+    const allRoutes = await Route.find({ 
+      tier, 
+      isActive: true 
+    }).sort({ totalDealsFound: -1, totalScans: 1 }); // Trier par performance
+    
+    if (allRoutes.length === 0) {
+      console.log(`⚠️  Aucune route active trouvée pour ${tier}`);
+      return;
+    }
+    
+    // Application de la rotation intelligente 70/30
+    const routesToScan = this.applyIntelligentRotation(allRoutes, maxCallsForSession);
+    
+    console.log(`📊 ${routesToScan.length} routes sélectionnées pour ${tier}`);
+    
+    // Traitement des routes avec multiplicateur saisonnier
+    const seasonalMultiplier = this.getSeasonalMultiplier();
+    const adjustedCallLimit = Math.floor(maxCallsForSession * seasonalMultiplier);
+    
+    let processedCount = 0;
+    for (const route of routesToScan) {
+      if (dailyApiCallCount >= DAILY_API_LIMIT || processedCount >= adjustedCallLimit) {
+        break;
+      }
+      
+      await this.processRoute(route);
+      processedCount++;
+      
+      // Délai entre appels pour éviter rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    console.log(`✅ ${tier}: ${processedCount} routes traitées`);
+    
+  } catch (error) {
+    console.error(`❌ Erreur monitoring ${tier}:`, error);
+  }
+};
+
+/**
+ * Application de la rotation intelligente 70% top routes / 30% aléatoire
+ */
+exports.applyIntelligentRotation = (allRoutes, maxCalls) => {
+  const topCount = Math.floor(maxCalls * ROTATION_STRATEGY.topRoutesPercentage / 100);
+  const randomCount = Math.floor(maxCalls * ROTATION_STRATEGY.randomRotationPercentage / 100);
+  
+  // 70% : Top routes par performance
+  const topRoutes = allRoutes
+    .slice(0, Math.min(ROTATION_STRATEGY.topRoutesCount, topCount));
+  
+  // 30% : Sélection aléatoire parmi les routes restantes
+  const remainingRoutes = allRoutes.slice(ROTATION_STRATEGY.topRoutesCount);
+  const randomRoutes = this.shuffleArray(remainingRoutes)
+    .slice(0, Math.min(randomCount, remainingRoutes.length));
+  
+  return [...topRoutes, ...randomRoutes];
+};
+
+/**
+ * Obtient le multiplicateur saisonnier pour ajuster les fréquences
+ */
+exports.getSeasonalMultiplier = () => {
+  const currentMonth = new Date().getMonth() + 1; // 1-12
+  
+  if (SEASONAL_MULTIPLIERS.highSeason.months.includes(currentMonth)) {
+    return SEASONAL_MULTIPLIERS.highSeason.multiplier;
+  } else if (SEASONAL_MULTIPLIERS.lowSeason.months.includes(currentMonth)) {
+    return SEASONAL_MULTIPLIERS.lowSeason.multiplier;
+  } else {
+    return SEASONAL_MULTIPLIERS.normalSeason.multiplier;
+  }
+};
+
+/**
+ * Traitement d'une route individuelle avec IA
+ */
+exports.processRoute = async (route) => {
+  try {
+    // Dates de recherche (7-30 jours à l'avance)
+    const departureDate = new Date(Date.now() + (Math.floor(Math.random() * 23) + 7) * 24 * 60 * 60 * 1000);
+    const returnDate = new Date(departureDate.getTime() + (Math.floor(Math.random() * 14) + 3) * 24 * 60 * 60 * 1000);
+    
+    // Recherche de vols
     const flights = await flightService.searchFlights(
       route.departureAirport.code,
       route.destinationAirport.code,
-      {
-        departureDate: searchDate.toISOString().split('T')[0],
-        returnDate: returnDate.toISOString().split('T')[0],
-        tripType: 'roundtrip'
-      }
+      departureDate,
+      returnDate
     );
+    
+    dailyApiCallCount++;
+    await incrementApiCallStats('flights', 'success');
+    
+    // Mise à jour statistiques route
+    await Route.findByIdAndUpdate(route._id, {
+      $inc: { totalScans: 1 },
+      lastScanDate: new Date()
+    });
     
     if (!flights || flights.length === 0) {
-      console.log('Aucun vol trouvé');
       return;
     }
     
-    // Filtrer les bonnes affaires (minimum 20% de réduction)
-    const deals = flights.filter(flight => flight.discountPercentage >= 20);
-    
-    if (deals.length > 0) {
-      console.log(`💰 ${deals.length} bonne(s) affaire(s) trouvée(s)!`);
+    // Validation IA des deals
+    for (const flight of flights.slice(0, 3)) { // Limite à 3 meilleurs vols
+      const isValidDeal = await this.validateFlightDeal(flight, route);
       
-      await Route.findByIdAndUpdate(route._id, {
-        $inc: { totalDealsFound: deals.length }
-      });
-      
-      // Traiter chaque bonne affaire
-      for (const deal of deals) {
-        await processDeal(route, deal);
+      if (isValidDeal) {
+        await this.createAndSendAlert(flight, route);
+        
+        // Mise à jour compteur deals
+        await Route.findByIdAndUpdate(route._id, {
+          $inc: { totalDealsFound: 1 }
+        });
       }
     }
     
   } catch (error) {
-    console.error(`Erreur route ${route.departureAirport.code}-${route.destinationAirport.code}:`, error);
-    
-    await incrementApiCallStats(
-      'flightSearch', 
-      `${route.departureAirport.code}-${route.destinationAirport.code}`,
-      false
-    );
+    console.error(`❌ Erreur traitement route ${route.departureAirport.code}-${route.destinationAirport.code}:`, error);
+    await incrementApiCallStats('flights', 'error');
   }
-}
+};
 
 /**
- * Traiter une bonne affaire trouvée
+ * Validation d'un deal avec seuils par tiers
  */
-async function processDeal(route, deal) {
+exports.validateFlightDeal = async (flight, route) => {
   try {
-    // Valider l'affaire avec l'IA
-    const isValid = await validateDeal(deal);
-    if (!isValid) {
-      console.log('❌ Affaire rejetée par validation IA');
-      return;
+    const threshold = DISCOUNT_THRESHOLDS[route.tier];
+    const discount = flight.discount || 0;
+    
+    // Validation basique par seuil
+    if (discount < threshold) {
+      return false;
     }
     
-    // Trouver les utilisateurs éligibles
-    const users = await findEligibleUsers(route, deal);
+    // Validation IA avancée
+    const aiValidation = await validateDeal({
+      flight,
+      route: {
+        from: route.departureAirport.code,
+        to: route.destinationAirport.code,
+        tier: route.tier
+      },
+      discount,
+      price: flight.price
+    });
     
-    if (users.length === 0) {
-      console.log('Aucun utilisateur éligible');
-      return;
-    }
-    
-    console.log(`📧 Envoi d'alertes à ${users.length} utilisateur(s)`);
-    
-    // Créer et envoyer les alertes
-    for (const user of users) {
-      await createAndSendAlert(user, route, deal);
-    }
+    return aiValidation.isValid;
     
   } catch (error) {
-    console.error('Erreur lors du traitement de l\'affaire:', error);
+    console.error('❌ Erreur validation deal:', error);
+    return discount >= DISCOUNT_THRESHOLDS[route.tier]; // Fallback sur seuil simple
   }
-}
+};
+
+/**
+ * Optimisation quotidienne avec IA
+ */
+exports.optimizeRoutesDaily = async () => {
+  try {
+    console.log('🤖 Optimisation quotidienne des routes avec IA...');
+    
+    const today = new Date().toDateString();
+    if (lastOptimizationDate === today) {
+      console.log('Optimisation déjà effectuée aujourd\'hui');
+      return;
+    }
+    
+    // Analyse des performances par tier
+    const tierPerformance = await this.analyzeTierPerformance();
+    
+    // Optimisation IA des fréquences
+    const optimizationResult = await optimizeRoutes({
+      tierPerformance,
+      currentAllocation: API_ALLOCATION,
+      seasonalFactor: this.getSeasonalMultiplier(),
+      dailyBudget: DAILY_API_LIMIT
+    });
+    
+    if (optimizationResult.adjustments) {
+      console.log('🎯 Ajustements recommandés:', optimizationResult.adjustments);
+      await this.applyOptimizationAdjustments(optimizationResult.adjustments);
+    }
+    
+    lastOptimizationDate = today;
+    console.log('✅ Optimisation quotidienne terminée');
+    
+  } catch (error) {
+    console.error('❌ Erreur optimisation quotidienne:', error);
+  }
+};
+
+/**
+ * Analyse des performances par tier
+ */
+exports.analyzeTierPerformance = async () => {
+  const performance = await Route.aggregate([
+    {
+      $group: {
+        _id: '$tier',
+        totalRoutes: { $sum: 1 },
+        totalScans: { $sum: '$totalScans' },
+        totalDeals: { $sum: '$totalDealsFound' },
+        avgSuccessRate: { 
+          $avg: { 
+            $cond: [
+              { $gt: ['$totalScans', 0] },
+              { $divide: ['$totalDealsFound', '$totalScans'] },
+              0
+            ]
+          }
+        }
+      }
+    }
+  ]);
+  
+  return performance.reduce((acc, tier) => {
+    acc[tier._id] = {
+      routes: tier.totalRoutes,
+      scans: tier.totalScans,
+      deals: tier.totalDeals,
+      successRate: tier.avgSuccessRate || 0
+    };
+    return acc;
+  }, {});
+};
+
+/**
+ * Utilitaire pour mélanger un tableau
+ */
+exports.shuffleArray = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+/**
+ * Créer et envoyer une alerte pour un deal validé
+ */
+exports.createAndSendAlert = async (flight, route) => {
+  try {
+    // Trouver les utilisateurs éligibles
+    const eligibleUsers = await this.findEligibleUsers(route);
+    
+    if (eligibleUsers.length === 0) {
+      console.log('Aucun utilisateur éligible pour cette alerte');
+      return;
+    }
+    
+    // Créer et envoyer les alertes
+    for (const user of eligibleUsers.slice(0, 10)) { // Limite à 10 utilisateurs par deal
+      const alert = new Alert({
+        user: user._id,
+        routeId: route._id,
+        departureAirport: route.departureAirport,
+        destinationAirport: route.destinationAirport,
+        discountPercentage: flight.discount || 0,
+        price: flight.price || 0,
+        originalPrice: flight.originalPrice || flight.price,
+        airline: flight.airline || 'Compagnie non spécifiée',
+        departureDate: flight.departureDate,
+        returnDate: flight.returnDate,
+        bookingUrl: flight.bookingUrl || '#',
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
+      });
+
+      await alert.save();
+      
+      // Envoyer l'email de façon non-bloquante
+      try {
+        await sendAlertEmail(user, alert);
+        console.log(`📧 Alerte envoyée à ${user.email}`);
+      } catch (emailError) {
+        console.warn(`⚠️  Erreur envoi email à ${user.email}:`, emailError.message);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur création/envoi alerte:', error);
+  }
+};
 
 /**
  * Trouver les utilisateurs éligibles pour une alerte
  */
-async function findEligibleUsers(route, deal) {
+exports.findEligibleUsers = async (route) => {
   try {
     const departureCode = route.departureAirport.code;
     
-    // Requête pour trouver les utilisateurs
-    const query = {
+    // Requête pour trouver les utilisateurs intéressés par cette route
+    const users = await User.find({
       $or: [
         { departureAirports: departureCode },
         { 
@@ -451,121 +673,194 @@ async function findEligibleUsers(route, deal) {
           ]
         }
       ]
-    };
+    }).limit(50); // Limite pour performance
     
-    // Si c'est CDG/ORY, inclure aussi ceux qui ont activé includeCDG
-    if (departureCode === 'CDG' || departureCode === 'ORY') {
-      query.$or.push({ includeCDG: true });
-    }
+    return users;
     
-    const users = await User.find(query);
-    
-    // Filtrer selon les critères
-    const eligibleUsers = [];
-    
-    for (const user of users) {
-      // Vérifier le seuil de réduction
-      if (user.subscriptionType === 'free') {
-        if (deal.discountPercentage < MIN_DISCOUNT_FREE || 
-            deal.discountPercentage > MAX_DISCOUNT_FREE) {
-          continue;
-        }
-        
-        // Vérifier la limite quotidienne
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const alertCount = await Alert.countDocuments({
-          user: user._id,
-          createdAt: { $gte: today }
-        });
-        
-        if (alertCount >= MAX_ALERTS_FREE) {
-          continue;
-        }
-      }
-      
-      eligibleUsers.push(user);
-    }
-    
-    return eligibleUsers;
   } catch (error) {
-    console.error('Erreur recherche utilisateurs:', error);
+    console.error('❌ Erreur recherche utilisateurs éligibles:', error);
     return [];
   }
-}
+};
 
 /**
- * Créer et envoyer une alerte
+ * Application des ajustements d'optimisation
  */
-async function createAndSendAlert(user, route, deal) {
+exports.applyOptimizationAdjustments = async (adjustments) => {
   try {
-    const alert = new Alert({
-      user: user._id,
-      departureAirport: route.departureAirport,
-      destinationAirport: route.destinationAirport,
-      price: deal.price,
-      originalPrice: deal.originalPrice,
-      discountPercentage: deal.discountPercentage,
-      discountAmount: deal.discountAmount,
-      airline: deal.airline,
-      farePolicy: deal.farePolicy || 'Économique',
-      stops: deal.stops || 0,
-      outboundDate: new Date(deal.departureDate),
-      returnDate: new Date(deal.returnDate),
-      duration: deal.duration,
-      bookingLink: deal.bookingLink,
-      expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
-    });
+    console.log('🔧 Application des ajustements d\'optimisation...');
     
-    await alert.save();
+    for (const adjustment of adjustments) {
+      if (adjustment.action === 'increase_frequency' && adjustment.confidence > 0.8) {
+        await Route.updateMany(
+          { tier: adjustment.tier },
+          { $inc: { scanFrequency: 1 } }
+        );
+        console.log(`📈 Fréquence augmentée pour ${adjustment.tier}`);
+      }
+      
+      if (adjustment.action === 'decrease_frequency' && adjustment.confidence > 0.8) {
+        await Route.updateMany(
+          { tier: adjustment.tier, scanFrequency: { $gt: 1 } },
+          { $inc: { scanFrequency: -1 } }
+        );
+        console.log(`📉 Fréquence diminuée pour ${adjustment.tier}`);
+      }
+    }
     
-    // Mettre à jour les économies potentielles
-    await User.findByIdAndUpdate(user._id, {
-      $inc: { totalPotentialSavings: deal.discountAmount }
-    });
-    
-    // Envoyer l'email
-    await sendAlertEmail(user, alert);
-    
-    console.log(`✅ Alerte envoyée à ${user.email}`);
   } catch (error) {
-    console.error('Erreur création alerte:', error);
+    console.error('❌ Erreur application ajustements:', error);
   }
-}
+};
 
 /**
- * Optimisation quotidienne des routes
+ * Optimisation quotidienne des routes avec IA
  */
 async function optimizeRoutesDaily() {
   try {
+    console.log('🔧 Optimisation quotidienne avec stratégie 3-tiers...');
+    
+    // Get current API quota
     const todayStats = await getTodayStats();
     const remainingQuota = MONTHLY_API_QUOTA - (todayStats.totalCalls * 30);
     
+    // Call 3-tier AI optimization
+    const { optimizeRoutes } = require('../ai/routeOptimizationService');
     const optimization = await optimizeRoutes({
       quota: remainingQuota,
-      isFullOptimization: false
+      isFullOptimization: false // Daily optimization
     });
     
-    if (optimization.routesToUpdate) {
-      for (const update of optimization.routesToUpdate) {
-        await Route.findOneAndUpdate(
-          {
-            'departureAirport.code': update.departureCode,
-            'destinationAirport.code': update.destinationCode
-          },
-          {
-            scanFrequency: update.newScanFrequency,
-            tier: update.newTier,
-            isActive: update.isActive
-          }
-        );
-      }
+    if (optimization && optimization.dailyAdjustments) {
+      console.log('✅ Optimisation IA appliquée:');
+      
+      // Log tier-wise optimizations
+      Object.entries(optimization.dailyAdjustments).forEach(([tier, data]) => {
+        if (data.routesToUpdate && data.routesToUpdate.length > 0) {
+          console.log(`  ${tier}: ${data.routesToUpdate.length} routes optimisées`);
+        }
+      });
+      
+      // Update route monitoring with new tier allocations
+      await updateTierMonitoringSchedule();
+    } else {
+      console.log('⚠️  Aucune optimisation appliquée - utilisation des paramètres par défaut');
     }
     
     console.log('✅ Optimisation quotidienne terminée');
   } catch (error) {
-    console.error('Erreur optimisation:', error);
+    console.error('❌ Erreur optimisation quotidienne:', error);
+  }
+}
+
+/**
+ * Mettre à jour les horaires de surveillance selon la stratégie 3-tiers
+ */
+async function updateTierMonitoringSchedule() {
+  try {
+    // Réallouer dynamiquement les fréquences selon les performances
+    const tierPerformance = await analyzeTierPerformance();
+    
+    // Ajuster les fréquences de scan dans les limites budgétaires
+    for (const [tier, performance] of Object.entries(tierPerformance)) {
+      if (performance.successRate > 5) { // Si taux de succès > 5%
+        await Route.updateMany(
+          { tier, isActive: true },
+          { $inc: { scanFrequency: Math.min(1, getMaxFrequencyForTier(tier) - performance.avgFrequency) } }
+        );
+        console.log(`📈 ${tier}: Fréquence augmentée (succès: ${performance.successRate}%)`);
+      } else if (performance.successRate < 1) { // Si taux de succès < 1%
+        await Route.updateMany(
+          { tier, isActive: true },
+          { $inc: { scanFrequency: -1 } }
+        );
+        console.log(`📉 ${tier}: Fréquence réduite (succès: ${performance.successRate}%)`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erreur mise à jour horaires:', error);
+  }
+}
+
+/**
+ * Analyser les performances par tier
+ */
+async function analyzeTierPerformance() {
+  const tiers = ['ultra-priority', 'priority', 'complementary'];
+  const performance = {};
+  
+  for (const tier of tiers) {
+    const routes = await Route.find({ tier, isActive: true });
+    const totalScans = routes.reduce((sum, route) => sum + route.totalScans, 0);
+    const totalDeals = routes.reduce((sum, route) => sum + route.totalDealsFound, 0);
+    const avgFrequency = routes.reduce((sum, route) => sum + route.scanFrequency, 0) / routes.length;
+    
+    performance[tier] = {
+      routeCount: routes.length,
+      totalScans,
+      totalDeals,
+      successRate: totalScans > 0 ? (totalDeals / totalScans * 100) : 0,
+      avgFrequency: avgFrequency || 0
+    };
+  }
+  
+  return performance;
+}
+
+/**
+ * Obtenir la fréquence maximum pour un tier
+ */
+function getMaxFrequencyForTier(tier) {
+  // Hard-coded allocation to avoid import issues
+  const API_ALLOCATION = {
+    tier1: { frequency: 12 },
+    tier2: { frequency: 6 },
+    tier3: { frequency: 2 }
+  };
+  
+  switch(tier) {
+    case 'ultra-priority':
+      return API_ALLOCATION.tier1.frequency;
+    case 'priority':
+      return API_ALLOCATION.tier2.frequency;
+    case 'complementary':
+      return API_ALLOCATION.tier3.frequency;
+    default:
+      return 2;
+  }
+}
+
+/**
+ * Surveiller et optimiser avec IA en temps réel
+ */
+async function smartTierMonitoring() {
+  try {
+    console.log('🧠 Surveillance intelligente 3-tiers démarrée...');
+    
+    // Analyser les performances actuelles
+    const performance = await analyzeTierPerformance();
+    
+    // Optimisation dynamique si nécessaire
+    let needsOptimization = false;
+    Object.values(performance).forEach(perf => {
+      if (perf.successRate < 0.5 || perf.successRate > 8) {
+        needsOptimization = true;
+      }
+    });
+    
+    if (needsOptimization) {
+      console.log('⚡ Déclenchement optimisation IA en temps réel...');
+      await optimizeRoutesDaily();
+    }
+    
+    // Rapport de performance
+    console.log('📊 Performance actuelle par tier:');
+    Object.entries(performance).forEach(([tier, perf]) => {
+      console.log(`  ${tier}: ${perf.routeCount} routes, ${perf.successRate.toFixed(2)}% succès`);
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur surveillance intelligente:', error);
   }
 }
 
@@ -587,4 +882,6 @@ async function logApiUsageStatus() {
   }
 }
 
-module.exports.createAndSendAlert = createAndSendAlert;
+module.exports.optimizeRoutesDaily = optimizeRoutesDaily;
+module.exports.smartTierMonitoring = smartTierMonitoring;
+module.exports.updateTierMonitoringSchedule = updateTierMonitoringSchedule;

@@ -31,10 +31,14 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  dreamDestinations: [{
+    type: String,
+    trim: true
+  }],
   preferences: {
     travelType: { 
       type: String, 
-      enum: ['adventure', 'luxury', 'budget', 'culture', 'relaxation'],
+      enum: ['adventure', 'culture', 'relaxation', 'city', 'beach', 'winter'],
       default: 'adventure'
     },
     dreamDestination: { type: String },
@@ -42,6 +46,18 @@ const UserSchema = new mongoose.Schema({
       type: String,
       enum: ['hotel', 'hostel', 'resort', 'airbnb', 'camping'],
       default: 'hotel'
+    },
+    flexibleAirports: {
+      type: Boolean,
+      default: false
+    },
+    budget: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'luxury']
+    },
+    travelFrequency: {
+      type: String,
+      enum: ['rare', 'occasional', 'regular', 'frequent']
     }
   },
   isAdmin: {

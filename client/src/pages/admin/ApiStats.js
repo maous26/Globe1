@@ -1,570 +1,336 @@
-import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { Calendar, RefreshCw, Database, Globe, ArrowRight, Activity, Cpu, BadgeCheck, AlertTriangle, Server } from 'lucide-react';
+// client/src/pages/admin/ApiStats.js
+import React, { useState, useEffect, useCallback } from 'react';
 import { adminAPI } from '../../services/api.service';
+import { CalendarIcon, ChartBarIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { Line } from 'recharts';
+import { 
+  LineChart, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
-const ApiStatsPage = () => {
-  const [statsData, setStatsData] = useState(null);
+const ApiStats = () => {
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days ago
-    endDate: new Date().toISOString().split('T')[0] // today
+    startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   });
 
   useEffect(() => {
     fetchApiStats();
   }, [dateRange]);
 
-  const fetchApiStats = async () => {
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading) {
+        console.log('🔄 Auto-refreshing API stats...');
+        fetchApiStats();
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const fetchApiStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await adminAPI.getApiStats({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      });
+      console.log('🔄 Fetching API stats...');
       
-      const data = response.data;
-      setStatsData(data);
+      // S'assurer que les dates sont des strings
+      const response = await adminAPI.getApiStats(
+        dateRange.startDate,
+        dateRange.endDate
+      );
       
-      setLoading(false);
+      setStats(response.data);
+      console.log('✅ API stats updated:', response.data);
     } catch (err) {
       console.error('Error fetching API stats:', err);
-      setError(err.message || 'Une erreur est survenue');
+      setError('Impossible de charger les statistiques API');
+    } finally {
       setLoading(false);
     }
+  }, [dateRange.startDate, dateRange.endDate]);
+
+  const handleDateChange = (field, value) => {
+    setDateRange(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  // Mock data for development - would be replaced with actual API data
-  const mockStatsData = {
-    quota: {
-      total: 30000,
-      used: 14362,
-      remaining: 15638,
-      resetDate: '2025-08-01'
-    },
-    daily: Array(30).fill().map((_, idx) => {
-      const date = new Date();
-      date.setDate(date.getDate() - 29 + idx);
-      return {
-        date: date.toISOString().split('T')[0],
-        totalCalls: Math.floor(Math.random() * 1000) + 1000,
-        successfulCalls: Math.floor(Math.random() * 900) + 900,
-        failedCalls: Math.floor(Math.random() * 50),
-        aiCalls: {
-          geminiFlash: Math.floor(Math.random() * 50) + 50,
-          gpt4oMini: Math.floor(Math.random() * 100) + 100,
-          total: Math.floor(Math.random() * 150) + 150
-        }
-      };
-    }),
-    routes: Array(20).fill().map((_, idx) => ({
-      route: `CDG-${['JFK', 'LHR', 'DXB', 'SIN', 'LAX', 'MAD', 'FCO', 'AMS', 'BCN', 'LIS'][idx % 10]}`,
-      calls: Math.floor(Math.random() * 500) + 100
-    })),
-    airports: Array(10).fill().map((_, idx) => ({
-      airport: ['CDG', 'ORY', 'LHR', 'JFK', 'MAD', 'FCO', 'AMS', 'BCN', 'DXB', 'SIN'][idx],
-      calls: Math.floor(Math.random() * 1000) + 500
-    })),
-    totals: {
-      totalCalls: 26483,
-      successfulCalls: 25967,
-      failedCalls: 516,
-      aiCalls: {
-        geminiFlash: 1587,
-        gpt4oMini: 2896,
-        total: 4483
-      }
-    }
+  // Fonction helper pour formater les nombres en toute sécurité
+  const safeToLocaleString = (value) => {
+    return (value !== undefined && value !== null) ? value.toLocaleString() : '0';
   };
 
-  // Use mock data if statsData is null and not loading
-  const data = statsData || (loading ? null : mockStatsData);
-
-  // Calculate daily average
-  const calculateDailyAverage = () => {
-    if (!data || !data.daily || data.daily.length === 0) return 0;
-    
-    const total = data.daily.reduce((sum, day) => sum + day.totalCalls, 0);
-    return Math.round(total / data.daily.length);
+  // Calculer le pourcentage d'utilisation
+  const calculateUsagePercentage = () => {
+    if (!stats?.currentMonth) return 0;
+    return Math.round((stats.currentMonth.totalCalls / 30000) * 100);
   };
 
-  // Colors for charts
-  const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#f59e0b', '#ec4899'];
+  const usagePercentage = calculateUsagePercentage();
+  const remainingCalls = 30000 - (stats?.currentMonth?.totalCalls || 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex">
+          <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">Erreur</h3>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Statistiques API</h1>
-          <p className="text-gray-600">Analyse détaillée de l'utilisation de l'API</p>
-        </div>
-        <a 
-          href="/admin/dashboard" 
-          className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-        >
-          ← Retour au tableau de bord
-        </a>
-      </div>
+    <div className="space-y-6">
+      <div className="bg-white shadow rounded-lg p-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Statistiques API</h1>
 
-      {/* Date Range Selector */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex items-center">
-            <Calendar className="h-5 w-5 text-gray-500 mr-2" />
-            <span className="text-gray-700">Période :</span>
-          </div>
-          
-          <div className="flex items-center space-x-2">
+        {/* Filtres de date */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date de début
+            </label>
             <input
               type="date"
               value={dateRange.startDate}
-              onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-              className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChange={(e) => handleDateChange('startDate', e.target.value)}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
-            <span className="text-gray-500">à</span>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date de fin
+            </label>
             <input
               type="date"
               value={dateRange.endDate}
-              onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-              className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChange={(e) => handleDateChange('endDate', e.target.value)}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          
-          <button
-            onClick={fetchApiStats}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualiser
-          </button>
+        </div>
+
+        {/* Métriques principales */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <CalendarIcon className="h-8 w-8 text-blue-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-blue-900">Appels aujourd'hui</p>
+                <p className="text-2xl font-bold text-blue-800">
+                  {safeToLocaleString(stats?.today?.totalCalls)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <ChartBarIcon className="h-8 w-8 text-green-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-green-900">Appels ce mois</p>
+                <p className="text-2xl font-bold text-green-800">
+                  {safeToLocaleString(stats?.currentMonth?.totalCalls)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <div className="h-8 w-8 bg-yellow-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">%</span>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-yellow-900">Quota utilisé</p>
+                <p className="text-2xl font-bold text-yellow-800">{usagePercentage}%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">✓</span>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-purple-900">Taux de succès</p>
+                <p className="text-2xl font-bold text-purple-800">
+                  {stats?.currentMonth?.totalCalls > 0 
+                    ? Math.round((stats.currentMonth.successfulCalls / stats.currentMonth.totalCalls) * 100)
+                    : 0}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Répartition par type d'API */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white border rounded-lg p-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Appels Flight API</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Recherches de vols</span>
+                <span className="font-semibold">{stats?.flightApiCalls?.searches || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Dates alternatives</span>
+                <span className="font-semibold">{stats?.flightApiCalls?.alternatives || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Détails aéroports</span>
+                <span className="font-semibold">{stats?.flightApiCalls?.airports || 0}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border rounded-lg p-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Appels IA</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Gemini Flash</span>
+                <span className="font-semibold">{stats?.aiCalls?.['gemini-flash'] || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">GPT-4o Mini</span>
+                <span className="font-semibold">{stats?.aiCalls?.['gpt4o-mini'] || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Graphiques */}
+        {stats?.dailyStats && stats.dailyStats.length > 0 && (
+          <div className="bg-white border rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Évolution quotidienne</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={stats.dailyStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(value) => format(new Date(value), 'dd/MM')}
+                />
+                <YAxis />
+                <Tooltip 
+                  labelFormatter={(value) => format(new Date(value), 'dd/MM/yyyy')}
+                  formatter={(value) => [safeToLocaleString(value), 'Appels']}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="totalCalls" 
+                  stroke="#2563eb" 
+                  name="Total"
+                  strokeWidth={2}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="successfulCalls" 
+                  stroke="#16a34a" 
+                  name="Succès"
+                  strokeWidth={2}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="failedCalls" 
+                  stroke="#dc2626" 
+                  name="Échecs"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Quotas et utilisation */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white border rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Quota mensuel</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Quota total</span>
+                <span className="font-semibold text-lg">30,000</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Utilisé</span>
+                <span className="font-semibold text-lg text-blue-600">
+                  {safeToLocaleString(stats?.currentMonth?.totalCalls)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Restant</span>
+                <span className="font-semibold text-lg text-green-600">
+                  {safeToLocaleString(remainingCalls)}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+                ></div>
+              </div>
+              <p className="text-sm text-gray-500 text-center">
+                {usagePercentage}% du quota mensuel utilisé
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white border rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Performances</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Appels réussis</span>
+                <span className="font-semibold text-lg text-green-600">
+                  {safeToLocaleString(stats?.currentMonth?.successfulCalls)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Appels échoués</span>
+                <span className="font-semibold text-lg text-red-600">
+                  {safeToLocaleString(stats?.currentMonth?.failedCalls)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Taux de succès</span>
+                <span className="font-semibold text-lg text-blue-600">
+                  {stats?.currentMonth?.totalCalls > 0 
+                    ? Math.round((stats.currentMonth.successfulCalls / stats.currentMonth.totalCalls) * 100)
+                    : 0}%
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      {loading ? (
-        <div className="bg-white rounded-lg shadow p-12 flex justify-center">
-          <RefreshCw className="h-12 w-12 text-blue-500 animate-spin" />
-        </div>
-      ) : error ? (
-        <div className="bg-white rounded-lg shadow p-6 text-center text-red-600">
-          {error}
-          <button 
-            onClick={fetchApiStats}
-            className="ml-2 text-blue-600 hover:text-blue-800"
-          >
-            Réessayer
-          </button>
-        </div>
-      ) : data ? (
-        <>
-          {/* Quota Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Quota total</p>
-                  <p className="text-2xl font-bold text-gray-800">{data.quota.total.toLocaleString()}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Réinitialisation le {new Date(data.quota.resetDate).toLocaleDateString('fr-FR')}
-                  </p>
-                </div>
-                <div className="p-2 rounded-full bg-blue-50 text-blue-700">
-                  <Database className="h-8 w-8" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Appels utilisés</p>
-                  <p className="text-2xl font-bold text-gray-800">{data.quota.used.toLocaleString()}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {Math.round((data.quota.used / data.quota.total) * 100)}% du quota mensuel
-                  </p>
-                </div>
-                <div className="p-2 rounded-full bg-purple-50 text-purple-700">
-                  <Activity className="h-8 w-8" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-purple-600 h-2.5 rounded-full" 
-                    style={{ width: `${(data.quota.used / data.quota.total) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Appels quotidiens</p>
-                  <p className="text-2xl font-bold text-gray-800">{calculateDailyAverage().toLocaleString()}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Moyenne sur la période
-                  </p>
-                </div>
-                <div className="p-2 rounded-full bg-green-50 text-green-700">
-                  <Server className="h-8 w-8" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Daily API Calls Chart */}
-          <div className="bg-white rounded-lg shadow p-4 mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Évolution des appels API</h2>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.daily}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => {
-                      const date = new Date(value);
-                      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-                    }}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value) => [value.toLocaleString(), '']}
-                    labelFormatter={(label) => new Date(label).toLocaleDateString('fr-FR')}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="totalCalls" 
-                    stroke="#3b82f6" 
-                    name="Total"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 6 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="aiCalls.total" 
-                    stroke="#8b5cf6" 
-                    name="AI" 
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 6 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="failedCalls" 
-                    stroke="#ef4444" 
-                    name="Échecs" 
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Top Routes and AI Usage */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-white rounded-lg shadow p-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Top 10 routes</h2>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={data.routes.slice(0, 10)}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis 
-                      dataKey="route" 
-                      type="category" 
-                      tick={{ fontSize: 12 }}
-                      width={60}
-                    />
-                    <Tooltip formatter={(value) => [value.toLocaleString(), 'Appels']} />
-                    <Bar dataKey="calls" fill="#10b981" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Répartition des appels API</h2>
-              <div className="h-80 flex flex-col justify-center">
-                <ResponsiveContainer width="100%" height="80%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Recherche de vols', value: data.totals.totalCalls - data.totals.aiCalls.total },
-                        { name: 'Gemini Flash', value: data.totals.aiCalls.geminiFlash },
-                        { name: 'GPT-4o Mini', value: data.totals.aiCalls.gpt4oMini }
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {[
-                        { name: 'Recherche de vols', value: data.totals.totalCalls - data.totals.aiCalls.total },
-                        { name: 'Gemini Flash', value: data.totals.aiCalls.geminiFlash },
-                        { name: 'GPT-4o Mini', value: data.totals.aiCalls.gpt4oMini }
-                      ].map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [value.toLocaleString(), 'Appels']} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex justify-center space-x-4">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-blue-500 mr-1"></div>
-                    <span className="text-xs text-gray-600">Recherche de vols</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
-                    <span className="text-xs text-gray-600">Gemini Flash</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div>
-                    <span className="text-xs text-gray-600">GPT-4o Mini</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Usage and Top Airports */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-white rounded-lg shadow p-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Utilisation de l'IA</h2>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <div className="flex items-center">
-                      <Cpu className="h-4 w-4 text-purple-600 mr-2" />
-                      <span className="text-sm font-medium text-gray-700">Gemini Flash</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-800">
-                      {data.totals.aiCalls.geminiFlash.toLocaleString()} appels
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      className="bg-purple-600 h-2.5 rounded-full" 
-                      style={{ width: `${(data.totals.aiCalls.geminiFlash / 1000) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>Quota mensuel : 1000</span>
-                    <span>{Math.round((data.totals.aiCalls.geminiFlash / 1000) * 100)}% utilisé</span>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <div className="flex items-center">
-                      <Cpu className="h-4 w-4 text-blue-600 mr-2" />
-                      <span className="text-sm font-medium text-gray-700">GPT-4o Mini</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-800">
-                      {data.totals.aiCalls.gpt4oMini.toLocaleString()} appels
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      className="bg-blue-600 h-2.5 rounded-full" 
-                      style={{ width: `${(data.totals.aiCalls.gpt4oMini / 2000) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>Quota mensuel : 2000</span>
-                    <span>{Math.round((data.totals.aiCalls.gpt4oMini / 2000) * 100)}% utilisé</span>
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Utilisation de l'IA</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center">
-                      <BadgeCheck className="h-4 w-4 text-green-500 mr-2" />
-                      <span className="text-sm text-gray-600">Optimisation des routes</span>
-                    </div>
-                    <div className="flex items-center">
-                      <BadgeCheck className="h-4 w-4 text-green-500 mr-2" />
-                      <span className="text-sm text-gray-600">Validation des offres</span>
-                    </div>
-                    <div className="flex items-center">
-                      <BadgeCheck className="h-4 w-4 text-green-500 mr-2" />
-                      <span className="text-sm text-gray-600">Génération de contenu</span>
-                    </div>
-                    <div className="flex items-center">
-                      <BadgeCheck className="h-4 w-4 text-green-500 mr-2" />
-                      <span className="text-sm text-gray-600">Analyse des tendances</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Top aéroports</h2>
-              <div className="space-y-4">
-                {data.airports.slice(0, 8).map((airport, index) => (
-                  <div key={airport.airport} className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        index < 3 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {index < 3 ? (
-                          <span className="font-bold">{index + 1}</span>
-                        ) : (
-                          <Globe className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-800">{airport.airport}</p>
-                        <p className="text-xs text-gray-500">
-                          {airport.airport === 'CDG' ? 'Paris Charles de Gaulle' :
-                           airport.airport === 'ORY' ? 'Paris Orly' :
-                           airport.airport === 'LHR' ? 'London Heathrow' :
-                           airport.airport === 'JFK' ? 'New York JFK' :
-                           airport.airport === 'MAD' ? 'Madrid Barajas' :
-                           airport.airport === 'FCO' ? 'Rome Fiumicino' :
-                           airport.airport === 'AMS' ? 'Amsterdam Schiphol' :
-                           airport.airport === 'BCN' ? 'Barcelona' :
-                           airport.airport === 'DXB' ? 'Dubai International' :
-                           airport.airport === 'SIN' ? 'Singapore Changi' : 'Aéroport'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-800">{airport.calls.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500">appels</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Usage Summary */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Résumé d'utilisation</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-blue-700">Total des appels</h3>
-                  <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded">
-                    {data.totals.totalCalls.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <BadgeCheck className="h-4 w-4 text-green-500 mr-2" />
-                    <span className="text-sm text-blue-700">Succès</span>
-                  </div>
-                  <span className="text-sm text-blue-800 font-medium">{data.totals.successfulCalls.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <div className="flex items-center">
-                    <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
-                    <span className="text-sm text-blue-700">Échecs</span>
-                  </div>
-                  <span className="text-sm text-blue-800 font-medium">{data.totals.failedCalls.toLocaleString()}</span>
-                </div>
-                <div className="mt-4">
-                  <div className="text-xs text-blue-700 mb-1">Taux de succès</div>
-                  <div className="w-full bg-blue-200 rounded-full h-2.5">
-                    <div 
-                      className="bg-blue-600 h-2.5 rounded-full" 
-                      style={{ width: `${(data.totals.successfulCalls / data.totals.totalCalls) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-blue-700 text-right mt-1">
-                    {((data.totals.successfulCalls / data.totals.totalCalls) * 100).toFixed(2)}%
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-4 bg-green-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-green-700">Utilisation du quota</h3>
-                  <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">
-                    {Math.round((data.quota.used / data.quota.total) * 100)}% utilisé
-                  </span>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-green-700">Utilisé</span>
-                      <span className="text-green-800 font-medium">{data.quota.used.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-sm mt-2">
-                      <span className="text-green-700">Restant</span>
-                      <span className="text-green-800 font-medium">{data.quota.remaining.toLocaleString()}</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-green-200 rounded-full h-2.5">
-                    <div 
-                      className="bg-green-600 h-2.5 rounded-full" 
-                      style={{ width: `${(data.quota.used / data.quota.total) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-green-700">
-                    {Math.floor((data.quota.remaining / calculateDailyAverage()))} jours restants au rythme actuel
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-purple-700">Appels IA</h3>
-                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded">
-                    {data.totals.aiCalls.total.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <Cpu className="h-4 w-4 text-purple-600 mr-2" />
-                    <span className="text-sm text-purple-700">Gemini Flash</span>
-                  </div>
-                  <span className="text-sm text-purple-800 font-medium">{data.totals.aiCalls.geminiFlash.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <div className="flex items-center">
-                    <Cpu className="h-4 w-4 text-blue-600 mr-2" />
-                    <span className="text-sm text-purple-700">GPT-4o Mini</span>
-                  </div>
-                  <span className="text-sm text-purple-800 font-medium">{data.totals.aiCalls.gpt4oMini.toLocaleString()}</span>
-                </div>
-                <div className="mt-4">
-                  <div className="text-xs text-purple-700 mb-1">Proportion des appels totaux</div>
-                  <div className="w-full bg-purple-200 rounded-full h-2.5">
-                    <div 
-                      className="bg-purple-600 h-2.5 rounded-full" 
-                      style={{ width: `${(data.totals.aiCalls.total / data.totals.totalCalls) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-purple-700 text-right mt-1">
-                    {((data.totals.aiCalls.total / data.totals.totalCalls) * 100).toFixed(2)}%
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : null}
     </div>
   );
 };
 
-export default ApiStatsPage;
+export default ApiStats;

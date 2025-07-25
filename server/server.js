@@ -23,9 +23,9 @@ if (process.env.FLIGHT_API_KEY) {
 // Initialize Express app
 const app = express();
 
-// Middleware
+// CORS configuration - Allow all localhost ports
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: true, // Allow all origins for development
   credentials: true,
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   allowedHeaders: 'Origin,X-Requested-With,Content-Type,Accept,x-auth-token'
@@ -44,7 +44,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/globegeni
   })
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Import routes
+// Routes
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const alertRoutes = require('./routes/alert.routes');
@@ -52,13 +52,15 @@ const adminRoutes = require('./routes/admin.routes');
 const flightRoutes = require('./routes/flight.routes');
 const healthRoutes = require('./routes/health.routes');
 
-// API routes
-app.use('/api/health', healthRoutes);
+// Services
+const { startRouteMonitoring } = require('./services/flight/routeMonitor');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/flights', flightRoutes);
+app.use('/api/health', healthRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
@@ -68,15 +70,20 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Start the server
+// Start server
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, async () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Dashboard: http://localhost:${PORT}/`);
+  console.log(`🔧 Admin: http://localhost:3000/admin`);
   
-  // Start route monitoring if not in test environment
-  if (process.env.NODE_ENV !== 'test') {
-    scheduleRouteMonitoring();
-    console.log('Route monitoring started');
+  // Start route monitoring after server is ready
+  try {
+    console.log('🔄 Initializing route monitoring...');
+    await startRouteMonitoring();
+    console.log('✅ Route monitoring initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize route monitoring:', error);
   }
 });
 
