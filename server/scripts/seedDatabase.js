@@ -20,14 +20,16 @@ async function seedDatabase() {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash('password123', salt);
       
-      await User.create({
+      await User.collection.insertOne({
         email: 'admin@globegenius.com',
         password: hashedPassword,
         firstName: 'Admin',
         isAdmin: true,
         subscriptionType: 'premium',
         departureAirports: ['CDG'],
-        includeCDG: true
+        includeCDG: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
       console.log('Admin user created');
     } else {
@@ -41,14 +43,16 @@ async function seedDatabase() {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash('password123', salt);
       
-      await User.create({
+      await User.collection.insertOne({
         email: 'user@example.com',
         password: hashedPassword,
         firstName: 'Test',
         isAdmin: false,
         subscriptionType: 'free',
         departureAirports: ['CDG'],
-        includeCDG: false
+        includeCDG: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
       console.log('Test user created');
     } else {

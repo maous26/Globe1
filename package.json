@@ -1,5 +1,44 @@
 {
-  "dependencies": {
-    "dotenv": "^17.2.0"
+  "name": "globegenius",
+  "version": "1.0.0",
+  "description": "Application de détection de bons plans de vols",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client\"",
+    "dev:debug": "concurrently \"npm run server:dev:debug\" \"npm run client\"",
+    "server:dev": "cd server && npm run dev",
+    "server:dev:debug": "cd server && npm run dev:debug",
+    "server:start": "cd server && npm start",
+    "client": "cd client && npm start",
+    "client:build": "cd client && npm run build",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "start": "npm run server:start",
+    "build": "npm run client:build",
+    "clean:all": "rm -rf node_modules server/node_modules client/node_modules",
+    "reset": "npm run clean:all && npm run install:all",
+    "test": "concurrently \"cd server && npm test\" \"cd client && npm test\"",
+    "lint": "concurrently \"cd server && npm run lint\" \"cd client && npm run lint\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/globegenius.git"
+  },
+  "keywords": [
+    "travel",
+    "flights",
+    "deals",
+    "alerts",
+    "nodejs",
+    "react",
+    "mongodb"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
   }
 }

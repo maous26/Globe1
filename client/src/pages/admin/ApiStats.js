@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { Calendar, RefreshCw, Database, Globe, ArrowRight, Activity, Cpu, BadgeCheck, AlertTriangle, Server } from 'lucide-react';
+import { adminAPI } from '../../services/api.service';
 
 const ApiStatsPage = () => {
   const [statsData, setStatsData] = useState(null);
@@ -20,14 +21,12 @@ const ApiStatsPage = () => {
       setLoading(true);
       setError(null);
       
-      // In a real app, this would be an actual API call
-      const response = await fetch(`/api/admin/api-stats?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+      const response = await adminAPI.getApiStats({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      });
       
-      if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des statistiques API');
-      }
-      
-      const data = await response.json();
+      const data = response.data;
       setStatsData(data);
       
       setLoading(false);

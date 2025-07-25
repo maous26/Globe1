@@ -1,12 +1,11 @@
 // client/src/services/auth.service.js
 import jwtDecode from 'jwt-decode';
 
-// Token storage keys
-const TOKEN_KEY = 'globegenius_token';
-const USER_KEY = 'globegenius_user';
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
 
 /**
- * Set authentication token and user data
+ * Set authentication data in localStorage
  * @param {string} token - JWT token
  * @param {Object} user - User data
  */
@@ -28,13 +27,28 @@ export const getToken = () => {
  * @returns {Object|null} - User data or null if not logged in
  */
 export const getUser = () => {
-  const userStr = localStorage.getItem(USER_KEY);
-  if (!userStr || userStr === 'undefined') return null;
   try {
-    return JSON.parse(userStr);
+    const userData = localStorage.getItem(USER_KEY);
+    return userData ? JSON.parse(userData) : null;
   } catch (error) {
     console.error('Error parsing user data:', error);
     return null;
+  }
+};
+
+/**
+ * Check if token is expired
+ * @param {string} token - JWT token
+ * @returns {boolean} - True if expired, false otherwise
+ */
+export const isTokenExpired = (token) => {
+  if (!token) return true;
+  
+  try {
+    const decoded = jwtDecode(token);
+    return decoded.exp * 1000 < Date.now();
+  } catch (error) {
+    return true;
   }
 };
 
@@ -65,24 +79,6 @@ export const isAuthenticated = () => {
 };
 
 /**
- * Check if user is admin
- * @returns {boolean} - True if admin, false otherwise
- */
-export const isAdmin = () => {
-  const user = getUser();
-  return user && user.isAdmin === true;
-};
-
-/**
- * Check if user has premium subscription
- * @returns {boolean} - True if premium, false otherwise
- */
-export const isPremium = () => {
-  const user = getUser();
-  return user && user.subscriptionType === 'premium';
-};
-
-/**
  * Clear authentication data (logout)
  */
 export const clearToken = () => {
@@ -95,24 +91,23 @@ export const clearToken = () => {
  * @param {Object} userData - Updated user data
  */
 export const updateUserData = (userData) => {
-  const currentUser = getUser();
-  if (!currentUser) return;
-  
-  const updatedUser = {
-    ...currentUser,
-    ...userData
-  };
-  
-  localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+  localStorage.setItem(USER_KEY, JSON.stringify(userData));
 };
 
-export default {
-  setAuth,
-  getToken,
-  getUser,
-  isAuthenticated,
-  isAdmin,
-  isPremium,
-  clearToken,
-  updateUserData
+/**
+ * Check if current user is admin
+ * @returns {boolean} - True if user is admin, false otherwise
+ */
+export const isAdmin = () => {
+  const user = getUser();
+  return user && user.isAdmin === true;
+};
+
+/**
+ * Check if current user is premium
+ * @returns {boolean} - True if user is premium, false otherwise
+ */
+export const isPremium = () => {
+  const user = getUser();
+  return user && user.subscriptionType === 'premium';
 };

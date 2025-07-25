@@ -5,8 +5,18 @@ const User = require('../models/user.model');
 // Middleware to verify JWT token and add userId to request
 exports.auth = async (req, res, next) => {
   try {
-    // Get token from header
-    const token = req.header('x-auth-token');
+    // Get token from header - support both formats
+    let token = req.header('x-auth-token');
+    
+    // Also check for Authorization Bearer header
+    if (!token) {
+      const authHeader = req.header('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+    
+    console.log('[Auth Middleware] Token reçu:', token ? token.substring(0, 20) + '...' : 'undefined');
     
     // Check if no token
     if (!token) {

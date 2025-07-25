@@ -1,10 +1,14 @@
 // client/src/services/api.service.js
 import axios from 'axios';
-import { getToken, clearToken } from './auth.service';
+import { getToken, clearToken, isAuthenticated } from './auth.service';
+
+// API URL configuration with fallback
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+  baseURL: API_BASE_URL,
+  timeout: 10000, // 10 seconds timeout
   headers: {
     'Content-Type': 'application/json',
   },
@@ -17,9 +21,11 @@ api.interceptors.request.use(
     if (token) {
       config.headers['x-auth-token'] = token;
     }
+    console.log(`📡 API Request: ${config.method.toUpperCase()} ${config.url}`);
     return config;
   },
   (error) => {
+    console.error('❌ Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -27,14 +33,31 @@ api.interceptors.request.use(
 // Add response interceptor to handle auth errors
 api.interceptors.response.use(
   (response) => {
+    console.log(`✅ API Response: ${response.config.method.toUpperCase()} ${response.config.url}`);
     return response;
   },
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Unauthorized, clear token and redirect to login
-      clearToken();
-      window.location.href = '/login';
+    if (error.response) {
+      console.error(`🔴 API Error (${error.response.status}): ${error.config.url}`, error.response.data);
+      
+      // Only redirect to login for 401 errors on protected routes
+      if (error.response.status === 401) {
+        const isPublicRoute = error.config.url.includes('/auth/register') || 
+                             error.config.url.includes('/auth/login') ||
+                             error.config.url.includes('/auth/reset-password');
+        
+        if (!isPublicRoute && window.location.pathname !== '/login') {
+          console.log('🔐 Authentication required, redirecting to login');
+          clearToken();
+          window.location.href = '/login';
+        }
+      }
+    } else if (error.request) {
+      console.error('🔌 Network error - no response received:', error.message);
+    } else {
+      console.error('❌ API error:', error.message);
     }
+    
     return Promise.reject(error);
   }
 );
@@ -46,7 +69,13 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   requestPasswordReset: (email) => api.post('/auth/reset-password-request', { email }),
   resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
-  getCurrentUser: () => api.get('/auth/me'),
+  getCurrentUser: () => {
+    // Only call if authenticated
+    if (!isAuthenticated()) {
+      return Promise.reject(new Error('Not authenticated'));
+    }
+    return api.get('/auth/me');
+  },
 };
 
 // User API
@@ -98,6 +127,19 @@ export const adminAPI = {
   
   getAlerts: (page = 1, limit = 20, search = '', status = '', minDiscount = '') => 
     api.get(`/admin/alerts?page=${page}&limit=${limit}&search=${search}&status=${status}&minDiscount=${minDiscount}`),
+};
+
+// Health check function
+export const checkApiHealth = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL.replace('/api', '')}/api/health`, {
+      timeout: 5000
+    });
+    return response.data;
+  } catch (error) {
+    console.error('❌ API health check failed:', error.message);
+    return { status: 'error', message: error.message };
+  }
 };
 
 export default api;

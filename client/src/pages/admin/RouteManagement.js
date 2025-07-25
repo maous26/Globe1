@@ -36,29 +36,23 @@ const RouteManagement = () => {
       setLoading(true);
       setError(null);
       
-      // Build query string
-      const queryParams = new URLSearchParams({
+      // Build parameters object
+      const params = {
         page: pagination.page,
         limit: pagination.limit,
         search: searchTerm
-      });
+      };
       
       if (filters.tier) {
-        queryParams.append('tier', filters.tier);
+        params.tier = filters.tier;
       }
       
       if (filters.isActive !== null) {
-        queryParams.append('isActive', filters.isActive);
+        params.isActive = filters.isActive;
       }
       
-      // In a real app, this would be an actual API call
-      const response = await fetch(`/api/admin/routes?${queryParams}`);
-      
-      if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des routes');
-      }
-      
-      const data = await response.json();
+      const response = await adminAPI.getRoutes(params);
+      const data = response.data;
       setRoutes(data.routes);
       setPagination({
         ...pagination,

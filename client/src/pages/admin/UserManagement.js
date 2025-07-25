@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronLeft, ChevronRight, Crown, User, RefreshCw } from 'lucide-react';
+import { adminAPI } from '../../services/api.service';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -24,14 +25,13 @@ const UserManagement = () => {
       setLoading(true);
       setError(null);
       
-      // In a real app, this would be an actual API call
-      const response = await fetch(`/api/admin/users?page=${page}&limit=${pagination.limit}&search=${search}`);
+      const response = await adminAPI.getUsers({
+        page,
+        limit: pagination.limit,
+        search
+      });
       
-      if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des utilisateurs');
-      }
-      
-      const data = await response.json();
+      const data = response.data;
       setUsers(data.users);
       setPagination({
         ...pagination,

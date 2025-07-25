@@ -6,11 +6,13 @@ services:
       dockerfile: Dockerfile
     container_name: globegenius-backend
     restart: unless-stopped
+    ports:
+      - "3001:3001"
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - MONGODB_URI=mongodb://globegenius-mongodb:27017/globegenius
-      - REDIS_URL=redis://globegenius-redis:6379
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-password123}@globegenius-mongodb:27017/globegenius?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@globegenius-redis:6379
       - JWT_SECRET=${JWT_SECRET}
       - SENDGRID_API_KEY=${SENDGRID_API_KEY}
       - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}

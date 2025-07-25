@@ -504,12 +504,30 @@ exports.getAlerts = async (req, res) => {
  */
 exports.getApiStats = async (req, res) => {
   try {
-    const startDate = req.query.startDate ? new Date(req.query.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const endDate = req.query.endDate ? new Date(req.query.endDate) : new Date();
+    // Validation et parsing des dates avec gestion d'erreur
+    let startDate, endDate;
     
-    // Ensure we have full days
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(23, 59, 59, 999);
+    try {
+      startDate = req.query.startDate ? new Date(req.query.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      endDate = req.query.endDate ? new Date(req.query.endDate) : new Date();
+      
+      // Vérifier que les dates sont valides
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error('Invalid date format');
+      }
+      
+      // Ensure we have full days
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      
+    } catch (dateError) {
+      console.error('Date parsing error:', dateError);
+      // Utiliser des dates par défaut en cas d'erreur
+      startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      endDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+    }
     
     // Get API stats for date range
     const apiStats = await ApiStats.find({
