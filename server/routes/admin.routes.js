@@ -11,6 +11,7 @@ const adminController = require('../controllers/admin.controller');
 const { importAirlinesFromJson, getBaggagePolicy } = require('../services/baggage/baggageImportService');
 const { baggageAIAgent } = require('../services/baggage/baggageAIAgent');
 const AirlineBaggage = require('../models/airlineBaggage.model');
+const smartRouteOptimizerAgent = require('../services/ai/smartRouteOptimizerAgent');
 
 // Toutes les routes admin nécessitent l'authentification ET les droits admin
 router.use(auth, admin);
@@ -353,6 +354,65 @@ router.get('/baggage-stats', async (req, res) => {
       success: false, 
       message: 'Erreur lors de la récupération des statistiques' 
     });
+  }
+});
+
+/**
+ * @route   GET /api/admin/ai-optimizer/report
+ * @desc    Get AI route optimizer performance report
+ * @access  Private/Admin
+ */
+router.get('/ai-optimizer/report', async (req, res) => {
+  try {
+    const report = await smartRouteOptimizerAgent.getPerformanceReport();
+    res.status(200).json(report);
+  } catch (error) {
+    console.error('Error getting AI optimizer report:', error);
+    res.status(500).json({ message: 'Erreur lors de la récupération du rapport IA' });
+  }
+});
+
+/**
+ * @route   POST /api/admin/ai-optimizer/manual-optimization
+ * @desc    Trigger manual AI route optimization
+ * @access  Private/Admin
+ */
+router.post('/ai-optimizer/manual-optimization', async (req, res) => {
+  try {
+    console.log('🔄 Optimisation IA manuelle déclenchée par admin');
+    
+    // Déclencher l'optimisation de manière asynchrone
+    smartRouteOptimizerAgent.performWeeklyOptimization()
+      .then(() => {
+        console.log('✅ Optimisation IA manuelle terminée');
+      })
+      .catch(error => {
+        console.error('❌ Erreur optimisation IA manuelle:', error);
+      });
+    
+    res.status(200).json({ 
+      message: 'Optimisation IA déclenchée avec succès',
+      status: 'running'
+    });
+  } catch (error) {
+    console.error('Error triggering manual AI optimization:', error);
+    res.status(500).json({ message: 'Erreur lors du déclenchement de l\'optimisation IA' });
+  }
+});
+
+/**
+ * @route   GET /api/admin/cache/stats
+ * @desc    Get cache statistics
+ * @access  Private/Admin
+ */
+router.get('/cache/stats', async (req, res) => {
+  try {
+    const cacheService = require('../services/cache/cacheService');
+    const stats = await cacheService.getCacheStats();
+    res.status(200).json(stats);
+  } catch (error) {
+    console.error('Error getting cache stats:', error);
+    res.status(500).json({ message: 'Erreur lors de la récupération des stats cache' });
   }
 });
 

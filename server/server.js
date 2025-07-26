@@ -5,6 +5,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 const { scheduleRouteMonitoring } = require('./services/flight/routeMonitor');
+const cacheService = require('./services/cache/cacheService');
 
 // Load environment variables
 dotenv.config();
@@ -36,8 +37,18 @@ app.use(express.urlencoded({ extended: true }));
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/globegenius')
-  .then(() => {
+  .then(async () => {
     console.log('MongoDB connected');
+    
+    // Initialize cache service
+    try {
+      console.log('🔄 Initializing Redis cache...');
+      await cacheService.initialize();
+      console.log('✅ Cache service ready');
+    } catch (error) {
+      console.warn('⚠️  Cache initialization failed, continuing without cache:', error.message);
+    }
+    
     // Initialize email templates
     const { initializeEmailTemplates } = require('./services/email/emailService');
     initializeEmailTemplates();
@@ -55,6 +66,7 @@ const healthRoutes = require('./routes/health.routes');
 // Services
 const { startRouteMonitoring } = require('./services/flight/routeMonitor');
 const { baggageAIAgent } = require('./services/baggage/baggageAIAgent');
+const smartRouteOptimizerAgent = require('./services/ai/smartRouteOptimizerAgent');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
@@ -94,6 +106,18 @@ app.listen(PORT, async () => {
     console.log('🎒 Baggage policies system ready');
   } catch (error) {
     console.error('❌ Failed to initialize baggage AI agent:', error);
+  }
+
+  // Initialize Smart Route Optimizer AI Agent
+  try {
+    console.log('🧠 Initializing Smart Route Optimizer AI Agent...');
+    smartRouteOptimizerAgent.start();
+    console.log('🎯 Smart Route Optimizer AI ready');
+    console.log('📅 Optimisation automatique: Dimanche 01:00 (hebdo) + 1er du mois 03:00 (mensuel)');
+    console.log('🔄 Remplacement automatique des routes sous-performantes');
+    console.log('💰 Respect strict du budget 30K calls/mois');
+  } catch (error) {
+    console.error('❌ Failed to initialize Smart Route Optimizer AI:', error);
   }
 });
 

@@ -1,24 +1,28 @@
 // server/services/flight/flightService.js
 const axios = require('axios');
-const Redis = require('ioredis');
-const statsService = require('../analytics/statsService');
-const ApiStats = require('../../models/apiStats.model');
+const { statsService } = require('../analytics/statsService');
+const cacheService = require('../cache/cacheService');
 
-// Initialize Redis client
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-
-// FlightLabs API configuration - CORRIGÉ avec la vraie URL de base officielle
-const FLIGHT_API_BASE_URL = 'https://app.goflightlabs.com';
+// Configuration API
+const FLIGHT_API_BASE_URL = process.env.FLIGHT_API_BASE_URL || 'https://app.goflightlabs.com';
 const FLIGHT_API_KEY = process.env.FLIGHT_API_KEY;
 
+console.log('🔧 Flight service configuration:');
+console.log('  Base URL:', FLIGHT_API_BASE_URL);
+console.log('  API Key configured:', !!FLIGHT_API_KEY);
+
 /**
- * Make a request to FlightLabs API avec les VRAIS endpoints officiels
+ * Fonction utilitaire pour faire des requêtes vers FlightLabs API
  */
 async function makeFlightLabsRequest(endpoint, params = {}) {
+  if (!FLIGHT_API_KEY) {
+    throw new Error('FLIGHT_API_KEY not configured');
+  }
+  
   try {
     console.log('🔄 FlightLabs API Request (OFFICIAL ENDPOINTS):');
     console.log('  Endpoint:', endpoint);
-    console.log('  API Key:', FLIGHT_API_KEY ? `${FLIGHT_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log('  API Key:', FLIGHT_API_KEY.substring(0, 20) + '...');
     console.log('  Params:', params);
     
     // Build URL avec la vraie URL de base officielle
@@ -64,17 +68,23 @@ async function makeFlightLabsRequest(endpoint, params = {}) {
 }
 
 /**
- * FONCTION OPTIMISÉE - Get flights selon la documentation officielle
+ * FONCTION PRINCIPALE - Get flights avec cache intelligent
  * Utilise l'endpoint officiel : https://app.goflightlabs.com/flights
  */
 exports.getFlights = async (filters = {}) => {
   try {
     console.log('✈️ Getting flights from OFFICIAL FlightLabs endpoint...');
     
-    // Utilise l'endpoint OFFICIEL "flights"
+    // 1. VÉRIFIER LE CACHE D'ABORD
+    const cachedResult = await cacheService.getFlightResults(filters);
+    if (cachedResult) {
+      console.log('💰 QUOTA ÉCONOMISÉ - Utilisation du cache !');
+      return cachedResult;
+    }
+    
+    // 2. Paramètres selon la documentation officielle
     const params = {};
     
-    // Paramètres selon la documentation officielle
     if (filters.limit) params.limit = Math.min(filters.limit, 10000); // Max 10,000 selon doc
     if (filters.flight_iata) params.flightIata = filters.flight_iata;
     if (filters.flight_icao) params.flightIcao = filters.flight_icao;
@@ -82,7 +92,12 @@ exports.getFlights = async (filters = {}) => {
     if (filters.dep_iata) params.depIata = filters.dep_iata;
     if (filters.arr_iata) params.arrIata = filters.arr_iata;
     
-    // UN SEUL APPEL API avec le VRAI endpoint
+    // Support des nouveaux paramètres FlightLabs
+    if (filters.depIata) params.depIata = filters.depIata;
+    if (filters.arrIata) params.arrIata = filters.arrIata;
+    
+    // 3. UN SEUL APPEL API avec le VRAI endpoint
+    console.log('💳 UTILISATION QUOTA API - Appel FlightLabs...');
     const data = await makeFlightLabsRequest('flights', params);
     
     if (data && data.data) {
@@ -90,10 +105,10 @@ exports.getFlights = async (filters = {}) => {
       
       console.log(`✅ Retrieved ${flights.length} flights from OFFICIAL endpoint`);
       
-      return {
+      const result = {
         success: true,
         flights: flights.map(flight => ({
-          // Informations de vol complètes selon la réponse API officielle
+          // Identifiants vol
           flight_iata: flight.flight?.iata || flight.flight_iata,
           flight_icao: flight.flight?.icao || flight.flight_icao,
           flight_number: flight.flight?.number || flight.flight_number,
@@ -119,7 +134,7 @@ exports.getFlights = async (filters = {}) => {
           // Compagnie aérienne
           airline_iata: flight.airline?.iata || flight.airline_iata,
           airline_icao: flight.airline?.icao || flight.airline_icao,
-          airline_name: flight.airline?.name,
+          airline_name: flight.airline?.name || flight.airline_name,
           
           // Avion et statut
           aircraft_icao: flight.aircraft?.icao || flight.aircraft_icao,
@@ -142,6 +157,19 @@ exports.getFlights = async (filters = {}) => {
         apiCallsUsed: 1,
         endpoint: 'flights'
       };
+
+      // 4. MISE EN CACHE ADAPTATIVE
+      const now = new Date();
+      const hour = now.getHours();
+      const dayOfWeek = now.getDay();
+      const adaptiveTTL = cacheService.getAdaptiveTTL(hour, dayOfWeek);
+      
+      await cacheService.setFlightResults(filters, result, adaptiveTTL);
+      
+      const ttlHours = Math.round(adaptiveTTL / 3600);
+      console.log(`🕒 Cache configuré: ${ttlHours}h (période ${hour >= 2 && hour <= 10 && [2,3,4].includes(dayOfWeek) ? 'OPTIMALE' : 'STANDARD'})`);
+      
+      return result;
     }
 
     return { 
@@ -164,12 +192,18 @@ exports.getFlights = async (filters = {}) => {
 };
 
 /**
- * Get flight schedules selon la documentation officielle
- * Utilise l'endpoint : https://app.goflightlabs.com/advanced-flights-schedules
+ * Get flight schedules avec cache
  */
 exports.getFlightSchedules = async (filters = {}) => {
   try {
     console.log('📅 Getting flight schedules from OFFICIAL endpoint...');
+    
+    // Vérifier le cache d'abord
+    const cachedResult = await cacheService.getFlightResults(filters);
+    if (cachedResult) {
+      console.log('💰 QUOTA ÉCONOMISÉ - Cache utilisé pour schedules !');
+      return cachedResult;
+    }
     
     // Paramètres selon la documentation officielle
     const params = {};
@@ -183,12 +217,13 @@ exports.getFlightSchedules = async (filters = {}) => {
     if (filters.flight_iata) params.flight_iata = filters.flight_iata;
     if (filters.limit) params.limit = filters.limit;
     
+    console.log('💳 UTILISATION QUOTA API - Appel schedules...');
     const data = await makeFlightLabsRequest('advanced-flights-schedules', params);
     
     if (data && data.data) {
       const schedules = Array.isArray(data.data) ? data.data : [data.data];
       
-      return {
+      const result = {
         success: true,
         schedules: schedules.map(schedule => ({
           flight_iata: schedule.flight?.iata,
@@ -205,6 +240,13 @@ exports.getFlightSchedules = async (filters = {}) => {
         apiCallsUsed: 1,
         endpoint: 'advanced-flights-schedules'
       };
+
+      // Mise en cache des schedules
+      const now = new Date();
+      const adaptiveTTL = cacheService.getAdaptiveTTL(now.getHours(), now.getDay());
+      await cacheService.setFlightResults(filters, result, adaptiveTTL);
+
+      return result;
     }
 
     return { success: false, message: 'No flight schedules found', schedules: [], apiCallsUsed: 1 };
@@ -220,23 +262,30 @@ exports.getFlightSchedules = async (filters = {}) => {
 };
 
 /**
- * Get airports selon la documentation officielle
- * Utilise l'endpoint : https://app.goflightlabs.com/retrieveAirport
+ * Get airports avec cache
  */
 exports.getAirports = async (filters = {}) => {
   try {
     console.log('🏢 Getting airports from OFFICIAL endpoint...');
     
+    // Vérifier le cache d'abord
+    const cachedResult = await cacheService.getFlightResults(filters);
+    if (cachedResult) {
+      console.log('💰 QUOTA ÉCONOMISÉ - Cache utilisé pour airports !');
+      return cachedResult;
+    }
+    
     // Paramètre requis selon doc
     const params = {};
     if (filters.query) params.query = filters.query;
     
+    console.log('💳 UTILISATION QUOTA API - Appel airports...');
     const data = await makeFlightLabsRequest('retrieveAirport', params);
     
     if (data && data.data) {
       const airports = Array.isArray(data.data) ? data.data : [data.data];
       
-      return {
+      const result = {
         success: true,
         airports: airports.map(airport => ({
           iata: airport.iata || airport.iataCode,
@@ -251,6 +300,11 @@ exports.getAirports = async (filters = {}) => {
         apiCallsUsed: 1,
         endpoint: 'retrieveAirport'
       };
+
+      // Cache long pour les aéroports (changent rarement)
+      await cacheService.setFlightResults(filters, result, 24 * 60 * 60); // 24h cache
+
+      return result;
     }
 
     return { success: false, message: 'No airports found', airports: [], apiCallsUsed: 1 };
@@ -258,7 +312,7 @@ exports.getAirports = async (filters = {}) => {
     console.error('❌ Error fetching airports:', error.message);
     return { 
       success: false, 
-      message: `Error: ${error.message}`, 
+      message: `FlightLabs API error: ${error.message}`, 
       airports: [],
       apiCallsUsed: 1
     };
@@ -322,17 +376,8 @@ exports.checkApiQuota = async () => {
     console.log('💳 Checking FlightLabs API quota...');
     
     // Update local statistics
-    await ApiStats.findOneAndUpdate(
-      { provider: 'flightlabs' },
-      {
-        $inc: { totalRequests: 1 },
-        $set: { 
-          lastRequest: new Date(),
-          status: 'active'
-        }
-      },
-      { upsert: true, new: true }
-    );
+    // This part of the code was removed from the new_code, so it's removed here.
+    // The statsService is no longer imported directly.
 
     return {
       success: true,
@@ -451,9 +496,9 @@ exports.getAlternativeDates = async (originCode, destinationCode, departureDate,
   try {
     const cacheKey = `alternatives:${originCode}:${destinationCode}:${departureDate}:${returnDate}:${price}`;
     
-    const cachedResults = await redis.get(cacheKey);
+    const cachedResults = await cacheService.getFlightResults({ originCode, destinationCode, departureDate, returnDate, price });
     if (cachedResults) {
-      return JSON.parse(cachedResults);
+      return cachedResults;
     }
     
     const alternatives = [];
@@ -495,7 +540,7 @@ exports.getAlternativeDates = async (originCode, destinationCode, departureDate,
     }
     
     // Cache for 6 hours
-    await redis.set(cacheKey, JSON.stringify(alternatives), 'EX', 21600);
+    await cacheService.setFlightResults({ originCode, destinationCode, departureDate, returnDate, price }, alternatives, 21600);
     
     return alternatives;
     
