@@ -1,142 +1,113 @@
 // server/services/ai/dealValidationService.js
 const { routeAIRequest } = require('./aiService');
 const { getBaggagePolicy } = require('../flight/baggageService');
-const machineLearningService = require('./machineLearningService');
+const dealReliabilityEngine = require('./dealReliabilityEngine');
 
 /**
- * Validate a flight deal using AI with ML improvements
+ * Validate a flight deal using AI with automatic learning from data patterns
  * @param {Object} deal - Flight deal to validate
- * @returns {Promise<Object>} - Validation result with score
+ * @param {Object} routeContext - Context about the route (averagePrice, etc.)
+ * @returns {Promise<Object>} - Validation result with reliability analysis
  */
-exports.validateDeal = async (deal) => {
+exports.validateDeal = async (deal, routeContext = {}) => {
   try {
-    // Get baggage policy for the airline
+    console.log(`🔍 Validation deal: ${deal.airline} ${deal.departureAirport?.code}→${deal.destinationAirport?.code} - ${deal.price}€`);
+    
+    // 1. ANALYSE DE FIABILITÉ AUTOMATIQUE (nouveau système ML)
+    const reliabilityAnalysis = await dealReliabilityEngine.analyzeDeal({
+      departureCode: deal.departureAirport?.code,
+      destinationCode: deal.destinationAirport?.code,
+      airline: deal.airline,
+      price: deal.price,
+      discountPercentage: deal.discountPercentage,
+      seatsAvailable: deal.seatsAvailable
+    }, {
+      routeId: routeContext.routeId,
+      averagePrice: routeContext.averagePrice
+    });
+    
+    // 2. VALIDATION TRADITIONNELLE AVEC POLITIQUE BAGAGES
     const baggagePolicy = await getBaggagePolicy(deal.airline);
     
-    // Get ML status to adapt criteria
-    const mlStatus = machineLearningService.getStatus();
-    const isMLTrained = mlStatus.lastTraining && mlStatus.modelVersion !== '1.0.0';
-    
-    // Define validation prompt with ML learning
-    const prompt = `
-Tu es un système IA expert en validation de deals de vol qui apprend continuellement des retours utilisateurs.
+    const validationPrompt = `
+Expert en validation de deals de vol avec apprentissage automatique.
 
-${isMLTrained ? `
-AMÉLIORATION ML ACTIVE:
-- Version modèle: ${mlStatus.modelVersion}
-- Dernier entraînement: ${mlStatus.lastTraining}
-- Critères ajustés basés sur feedbacks utilisateurs réels
-` : 'MODÈLE DE BASE (aucun entraînement ML spécifique encore)'}
+DEAL:
+- ${deal.departureAirport?.code || 'Unknown'} → ${deal.destinationAirport?.code || 'Unknown'}
+- Compagnie: ${deal.airline || 'Unknown'}
+- Prix: ${deal.price || 0}€ (Réduction: ${deal.discountPercentage || 0}%)
+- Date: ${deal.departureDate || 'Unknown'}
 
-DEAL À ANALYSER:
-- De: {{departureCode}} vers {{destinationCode}}
-- Compagnie: {{airline}}
-- Prix: {{price}} EUR (Prix de référence: {{originalPrice}} EUR)
-- Réduction: {{discountPercentage}}% ({{discountAmount}} EUR d'économie)
-- Dates: {{departureDate}} → {{returnDate}} ({{duration}} jours)
-- Escales: {{stops}} | Type tarif: {{farePolicy}}
+ANALYSE DE FIABILITÉ ML:
+- Score fiabilité: ${reliabilityAnalysis.reliabilityScore}%
+- Légitimité: ${reliabilityAnalysis.isReliable ? 'FIABLE' : 'SUSPECT'}
+- Confiance IA: ${reliabilityAnalysis.confidence}%
+- Warnings: ${reliabilityAnalysis.warnings.join(', ') || 'Aucun'}
 
 POLITIQUE BAGAGES:
-{{baggagePolicy}}
+${baggagePolicy ? JSON.stringify(baggagePolicy, null, 2) : 'Non disponible'}
 
-CRITÈRES DE VALIDATION RENFORCÉS:
-1. Authenticité du deal (pas de prix de référence gonflé)
-2. Valeur réelle pour l'utilisateur (frais cachés, restrictions)
-3. Politique bagages acceptable (pas de tarif dépouillé)
-4. Réputation compagnie et route
-5. Timing et disponibilité réalistes
+VALIDATION FINALE:
+Le système ML a déjà analysé les patterns, timing, historique compagnie et facteurs suspects.
+Valide maintenant les aspects pratiques et utilisateur.
 
-${isMLTrained ? `
-APPRENTISSAGE ML: Applique les patterns appris des feedbacks utilisateurs pour cette validation.
-Sois plus strict sur les compagnies/routes ayant reçu de mauvais retours.
-Privilégie les types de deals ayant généré des réservations réelles.
-` : ''}
-
-RETOURNE STRICTEMENT ce JSON:
+RETOURNE ce JSON:
 {
   "isValid": true/false,
   "confidence": 0-100,
-  "reasoning": "Explication claire de ta décision",
+  "reasoning": "Décision basée sur analyse ML + validation pratique",
   "valueRating": 1-10,
-  "warnings": ["Alertes éventuelles sur le deal"],
+  "warnings": ["alertes pour utilisateur"],
   "aiScore": 0-100,
-  "mlFactors": {
-    "airlineReputation": 0-10,
-    "routePopularity": 0-10,
-    "discountRealism": 0-10,
-    "timingRelevance": 0-10
-  }
+  "recommendation": "ACCEPT" | "REJECT" | "REVIEW"
 }
 `;
 
-    // Call AI for validation
-    const result = await routeAIRequest('deal-validation', prompt, {
-      departureCode: deal.departureAirport?.code || 'Unknown',
-      destinationCode: deal.destinationAirport?.code || 'Unknown',
-      airline: deal.airline || 'Unknown',
-      price: deal.price || 0,
-      originalPrice: deal.originalPrice || 0,
-      discountPercentage: deal.discountPercentage || 0,
-      discountAmount: deal.discountAmount || 0,
-      departureDate: deal.departureDate || 'Unknown',
-      returnDate: deal.returnDate || 'Unknown',
-      duration: deal.duration || 0,
-      stops: deal.stops || 0,
-      farePolicy: deal.farePolicy || 'Unknown',
-      baggagePolicy: baggagePolicy ? JSON.stringify(baggagePolicy, null, 2) : 'Unknown'
+    // 3. APPEL IA POUR VALIDATION FINALE
+    const validationResult = await routeAIRequest('deal-validation', validationPrompt, {
+      dealData: JSON.stringify(deal),
+      reliabilityAnalysis: JSON.stringify(reliabilityAnalysis),
+      baggagePolicy: baggagePolicy ? JSON.stringify(baggagePolicy) : 'None'
     });
-    
-    // Enhanced validation logic with ML
-    const minConfidence = isMLTrained ? 75 : 70; // Plus strict si ML entraîné
-    const minValueRating = isMLTrained ? 7 : 6;
-    
-    // Validate result
-    if (!result || !result.isValid) {
-      console.log(`❌ Deal validation failed: ${result?.reasoning || 'Unknown reason'}`);
-      return {
-        isValid: false,
-        confidence: result?.confidence || 0,
-        aiScore: result?.aiScore || 0,
-        reasoning: result?.reasoning || 'Validation failed',
-        mlEnhanced: isMLTrained
-      };
-    }
-    
-    // Check thresholds
-    if (result.confidence < minConfidence || result.valueRating < minValueRating) {
-      console.log(`❌ Deal validation failed: Low confidence (${result.confidence}) or value rating (${result.valueRating})`);
-      return {
-        isValid: false,
-        confidence: result.confidence,
-        aiScore: result.aiScore || 0,
-        reasoning: `Seuils non atteints: confiance ${result.confidence}% < ${minConfidence}% ou valeur ${result.valueRating} < ${minValueRating}`,
-        mlEnhanced: isMLTrained
-      };
-    }
-    
-    // Deal is valid
-    console.log(`✅ Deal validation passed: ${result.reasoning} (Score: ${result.aiScore || result.confidence})`);
+
+    // 4. COMBINER RÉSULTATS ML + IA
+    const finalScore = Math.round((reliabilityAnalysis.reliabilityScore + (validationResult.confidence || 50)) / 2);
+    const isAccepted = reliabilityAnalysis.isReliable && 
+                      (validationResult.isValid !== false) && 
+                      finalScore >= 65;
+
+    console.log(`${isAccepted ? '✅' : '❌'} Deal ${isAccepted ? 'ACCEPTÉ' : 'REJETÉ'} - Score final: ${finalScore}% (ML: ${reliabilityAnalysis.reliabilityScore}%, IA: ${validationResult.confidence || 50}%)`);
+
     return {
-      isValid: true,
-      confidence: result.confidence,
-      aiScore: result.aiScore || result.confidence,
-      reasoning: result.reasoning,
-      warnings: result.warnings || [],
-      mlFactors: result.mlFactors || {},
-      mlEnhanced: isMLTrained,
-      modelVersion: mlStatus.modelVersion
+      isValid: isAccepted,
+      confidence: finalScore,
+      aiScore: finalScore,
+      reasoning: `ML: ${reliabilityAnalysis.reasoning}. Validation: ${validationResult.reasoning || 'Standard check passed'}`,
+      warnings: [
+        ...reliabilityAnalysis.warnings,
+        ...(validationResult.warnings || [])
+      ],
+      valueRating: validationResult.valueRating || Math.round(finalScore / 10),
+      reliabilityAnalysis, // Données ML complètes
+      analyticsId: reliabilityAnalysis.analyticsId, // Pour feedback futur
+      mlEnhanced: true,
+      recommendation: validationResult.recommendation || (isAccepted ? 'ACCEPT' : 'REJECT')
     };
     
   } catch (error) {
     console.error('❌ Error validating deal:', error);
-    // Return more conservative default with error info
+    
+    // Fallback conservateur
     return {
-      isValid: true, // Default to valid to avoid missing good deals
-      confidence: 50,
-      aiScore: 50,
-      reasoning: 'Validation AI indisponible - Deal accepté par défaut',
+      isValid: false,
+      confidence: 30,
+      aiScore: 30,
+      reasoning: 'Erreur système de validation - Deal rejeté par sécurité',
+      warnings: ['Système de validation temporairement indisponible'],
+      valueRating: 3,
       error: error.message,
-      mlEnhanced: false
+      mlEnhanced: false,
+      recommendation: 'REJECT'
     };
   }
 };
@@ -150,7 +121,7 @@ exports.enrichDealWithContent = async (deal) => {
   try {
     // Define enrichment prompt
     const prompt = `
-Tu es un expert IA en contenu voyage. Crée du contenu attractif pour ce deal de vol:
+Tu es un expert IA en contenu voyage. Crée du contenu attractif pour ce deal de vol VALIDÉ:
 
 Deal:
 - De: {{departureName}} ({{departureCode}}) vers {{destinationName}} ({{destinationCode}})
@@ -158,7 +129,7 @@ Deal:
 - Économie: {{discountPercentage}}% ({{discountAmount}} EUR)
 - Voyage: {{departureDate}} → {{returnDate}} ({{duration}} jours)
 
-Mission: Génère du contenu engageant basé sur la destination et l'opportunité.
+Mission: Génère du contenu engageant basé sur la destination et l'opportunité FIABLE.
 
 RETOURNE ce JSON strictement:
 {
@@ -192,12 +163,12 @@ Assure-toi que le contenu soit spécifique à la destination et économiquement 
     return {
       ...deal,
       content: result || {
-        headline: `Deal exceptionnel vers ${deal.destinationAirport?.name || 'destination'}`,
-        description: `Profitez de ${deal.discountPercentage || 30}% de réduction sur ce vol.`,
-        highlights: ['Prix réduit', 'Bonne compagnie', 'Dates flexibles'],
-        travelTips: 'Réservez rapidement pour garantir ce prix.',
-        bestFor: ['Vacances', 'Découverte'],
-        urgencyFactor: 'Offre limitée dans le temps'
+        headline: `Deal fiable vers ${deal.destinationAirport?.name || 'destination'}`,
+        description: `Profitez de ${deal.discountPercentage || 30}% de réduction sur ce vol validé par notre IA.`,
+        highlights: ['Prix vérifié', 'Deal fiable', 'Bonne compagnie', 'Timing optimal'],
+        travelTips: 'Réservez rapidement, ce deal a été validé par notre système anti-fraude.',
+        bestFor: ['Vacances', 'Découverte', 'Affaires'],
+        urgencyFactor: 'Deal vérifié - Nombre de places limité'
       }
     };
   } catch (error) {
@@ -206,13 +177,51 @@ Assure-toi que le contenu soit spécifique à la destination et économiquement 
     return {
       ...deal,
       content: {
-        headline: `Vol vers ${deal.destinationAirport?.name || 'destination'} à prix réduit`,
-        description: `Économisez ${deal.discountPercentage || 'jusqu\'à 30'}% sur ce vol.`,
-        highlights: ['Prix avantageux', 'Vol direct', 'Dates pratiques'],
-        travelTips: 'Comparez les prix avant de réserver.',
-        bestFor: ['Voyage d\'affaires', 'Loisirs'],
-        urgencyFactor: 'Prix susceptible de changer'
+        headline: `Vol vers ${deal.destinationAirport?.name || 'destination'} - Prix vérifié`,
+        description: `Économisez ${deal.discountPercentage || 'jusqu\'à 30'}% sur ce vol validé par notre IA.`,
+        highlights: ['Prix authentique', 'Deal contrôlé', 'Système anti-fraude', 'Qualité vérifiée'],
+        travelTips: 'Comparez toujours les prix avant de réserver.',
+        bestFor: ['Voyage d\'affaires', 'Loisirs', 'Famille'],
+        urgencyFactor: 'Disponibilité limitée - Prix vérifié'
       }
     };
+  }
+};
+
+/**
+ * Feedback sur le résultat d'un deal pour apprentissage automatique
+ * @param {String} analyticsId - ID de l'analyse pour apprentissage
+ * @param {String} outcome - Résultat réel ('legitimate_deal', 'pricing_error', etc.)
+ * @param {Array} evidence - Preuves collectées
+ */
+exports.reportDealOutcome = async (analyticsId, outcome, evidence = []) => {
+  try {
+    if (!analyticsId) return false;
+    
+    console.log(`📚 Feedback apprentissage: ${outcome} pour deal ${analyticsId}`);
+    
+    const success = await dealReliabilityEngine.learnFromOutcome(analyticsId, outcome, evidence);
+    
+    if (success) {
+      console.log('✅ Apprentissage automatique mis à jour');
+    }
+    
+    return success;
+    
+  } catch (error) {
+    console.error('❌ Erreur feedback deal outcome:', error);
+    return false;
+  }
+};
+
+/**
+ * Obtenir les statistiques du système d'apprentissage
+ */
+exports.getLearningStats = async () => {
+  try {
+    return await dealReliabilityEngine.getLearningStats();
+  } catch (error) {
+    console.error('❌ Erreur stats apprentissage:', error);
+    return null;
   }
 };
