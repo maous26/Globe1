@@ -1,6 +1,7 @@
 // server/services/ai/smartRouteOptimizerAgent.js
 const Route = require('../../models/route.model');
 const Alert = require('../../models/alert.model');
+const QuarterlyReport = require('../../models/quarterlyReport.model');
 const { aiService } = require('./aiService');
 const cron = require('node-cron');
 
@@ -579,21 +580,61 @@ Réponds au format JSON strict:
    */
   async saveQuarterlyReport(report) {
     try {
-      // Créer un modèle simple pour stocker les rapports (on pourrait créer un modèle dédié)
-      const Route = require('../../models/route.model');
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+      const quarterString = `Q${currentQuarter}-${currentYear}`;
+
+      // Supprimer l'ancien rapport du même trimestre s'il existe
+      await QuarterlyReport.deleteOne({ quarter: quarterString });
+
+      // Créer le nouveau rapport
+      const quarterlyReport = new QuarterlyReport({
+        quarter: quarterString,
+        year: currentYear,
+        quarterNumber: currentQuarter,
+        analysisStartDate: new Date(report.summary.period.start),
+        analysisEndDate: new Date(report.summary.period.end),
+        totalRoutesAnalyzed: report.summary.totalRoutes,
+        averagePerformanceScore: report.summary.averageScore,
+        routePerformances: report.routeAnalyses ? report.routeAnalyses.map(route => ({
+          routeId: route._id,
+          route: {
+            departure: route.departureAirport.code,
+            destination: route.destinationAirport.code,
+            tier: route.tier
+          },
+          performanceScore: route.performance?.score || 0,
+          totalDeals: route.totalDealsFound || 0,
+          totalScans: route.totalScans || 0,
+          roi: route.performance?.roi || 0,
+          trend: route.performance?.trend || 'stable',
+          recommendation: route.performance?.recommendation || ''
+        })) : [],
+        recommendations: report.recommendations || [],
+        summary: report.summary.analysis || 'Analyse trimestrielle des performances des routes.',
+        nextAnalysisDate: this.getNextQuarterlyDate(),
+        budgetAnalysis: {
+          estimatedMonthlyCalls: report.summary.estimatedMonthlyCalls || 0,
+          currentUsage: report.summary.currentUsage || 0,
+          budgetEfficiency: report.summary.budgetUtilization || 0
+        }
+      });
+
+      await quarterlyReport.save();
       
-      // Pour l'instant, on log juste le rapport (tu pourrais créer un modèle QuarterlyReport)
-      console.log('📊 RAPPORT TRIMESTRIEL SAUVEGARDÉ:', {
-        quarter: report.quarter,
+      console.log('📊 RAPPORT TRIMESTRIEL SAUVEGARDÉ EN DB:', {
+        quarter: quarterString,
         routes: report.summary.totalRoutes,
         budget: report.summary.budgetUtilization + '%',
         recommandations: report.recommendations.length
       });
 
-      // TODO: Créer un modèle QuarterlyReport si tu veux persister en DB
+      return quarterlyReport;
       
     } catch (error) {
-      console.error('❌ Erreur sauvegarde rapport:', error);
+      console.error('❌ Erreur sauvegarde rapport trimestriel:', error);
+      throw error;
     }
   }
 
@@ -746,23 +787,36 @@ Réponds au format JSON strict:
    */
   async getPerformanceReport(type = 'monthly') {
     if (type === 'quarterly') {
-      const enrichedRoutes = await this.analyzeQuarterlyPerformances();
-      const totalCalls = enrichedRoutes.reduce((sum, r) => sum + r.callsPerMonth, 0);
+      // Récupérer le dernier rapport trimestriel de la base
+      const latestReport = await QuarterlyReport.findOne({})
+        .sort({ generatedAt: -1 })
+        .populate('routePerformances.routeId');
       
+      if (latestReport) {
+        return {
+          type: 'quarterly',
+          quarter: latestReport.quarter,
+          analysisStartDate: latestReport.analysisStartDate,
+          analysisEndDate: latestReport.analysisEndDate,
+          totalRoutesAnalyzed: latestReport.totalRoutesAnalyzed,
+          averagePerformanceScore: latestReport.averagePerformanceScore,
+          recommendations: latestReport.recommendations,
+          summary: latestReport.summary,
+          nextAnalysisDate: latestReport.nextAnalysisDate,
+          budgetAnalysis: latestReport.budgetAnalysis,
+          routePerformances: latestReport.routePerformances,
+          generatedAt: latestReport.generatedAt
+        };
+      }
+      
+      // Si aucun rapport n'existe, retourner un rapport vide
       return {
         type: 'quarterly',
-        totalRoutes: enrichedRoutes.length,
-        totalMonthlyCalls: totalCalls,
-        budgetUtilization: (totalCalls / this.maxMonthlyCallsTarget * 100).toFixed(1),
-        topPerformers: enrichedRoutes.slice(0, 5),
-        underPerformers: enrichedRoutes.slice(-5),
-        trends: {
-          growing: enrichedRoutes.filter(r => r.quarterlyTrend === 'croissante').length,
-          declining: enrichedRoutes.filter(r => r.quarterlyTrend === 'décroissante').length,
-          stable: enrichedRoutes.filter(r => r.quarterlyTrend === 'stable').length
-        },
-        lastOptimization: this.lastOptimization,
-        nextAnalysis: this.getNextQuarterlyDate()
+        totalRoutesAnalyzed: 0,
+        averagePerformanceScore: 0,
+        recommendations: ['Aucun rapport trimestriel généré. Déclenchez une analyse manuelle.'],
+        summary: 'Aucune analyse trimestrielle disponible.',
+        nextAnalysisDate: this.getNextQuarterlyDate()
       };
     } else {
       const enrichedRoutes = await this.analyzeRoutePerformances();

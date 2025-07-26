@@ -129,6 +129,10 @@ export const adminAPI = {
   
   getAlerts: (page = 1, limit = 20, search = '', status = '', minDiscount = '') => 
     api.get(`/admin/alerts?page=${page}&limit=${limit}&search=${search}&status=${status}&minDiscount=${minDiscount}`),
+  
+  // AI Quarterly Reports
+  getQuarterlyReport: () => api.get('/admin/ai-optimizer/quarterly-report'),
+  triggerQuarterlyAnalysis: () => api.post('/admin/ai-optimizer/manual-quarterly-analysis'),
 };
 
 // Health check function

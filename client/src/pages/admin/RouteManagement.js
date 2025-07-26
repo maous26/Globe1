@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, Filter, Check, X, AlertTriangle, Plane, ArrowRight, Globe, Sparkles, ChevronLeft, ChevronRight, PlayCircle } from 'lucide-react';
+import { Search, RefreshCw, Filter, Check, X, AlertTriangle, Plane, ArrowRight, Globe, Sparkles, ChevronLeft, ChevronRight, PlayCircle, BarChart3, Calendar, TrendingUp, Award, AlertCircle } from 'lucide-react';
 import { adminAPI } from '../../services/api.service';
 
 const RouteManagement = () => {
@@ -15,6 +15,11 @@ const RouteManagement = () => {
     tier: '',
     isActive: null
   });
+
+  // Quarterly Reports State
+  const [quarterlyReport, setQuarterlyReport] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [showQuarterlyReport, setShowQuarterlyReport] = useState(false);
 
   const fetchRoutes = useCallback(async () => {
     try {
@@ -52,9 +57,48 @@ const RouteManagement = () => {
     }
   }, [currentPage, routesPerPage, searchTerm, filters.tier, filters.isActive]);
 
+  const fetchQuarterlyReport = useCallback(async () => {
+    try {
+      setReportLoading(true);
+      console.log('🔄 Fetching quarterly AI report...');
+      
+      const response = await adminAPI.getQuarterlyReport();
+      setQuarterlyReport(response.data);
+      console.log('📊 Quarterly report loaded:', response.data);
+      
+    } catch (err) {
+      console.error('Error fetching quarterly report:', err);
+      setError('Erreur lors du chargement du rapport trimestriel');
+    } finally {
+      setReportLoading(false);
+    }
+  }, []);
+
+  const triggerManualQuarterlyAnalysis = async () => {
+    try {
+      setReportLoading(true);
+      console.log('🤖 Triggering manual quarterly analysis...');
+      
+      await adminAPI.triggerQuarterlyAnalysis();
+      console.log('✅ Manual quarterly analysis triggered');
+      
+      // Refresh the report after triggering
+      setTimeout(() => {
+        fetchQuarterlyReport();
+      }, 2000);
+      
+    } catch (err) {
+      console.error('Error triggering quarterly analysis:', err);
+      setError('Erreur lors du déclenchement de l\'analyse trimestrielle');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRoutes();
-  }, [fetchRoutes]);
+    fetchQuarterlyReport();
+  }, [fetchRoutes, fetchQuarterlyReport]);
 
   const handlePageChange = (newPage) => {
     console.log('🔄 Changing page from', currentPage, 'to:', newPage);
@@ -119,6 +163,13 @@ const RouteManagement = () => {
             </div>
             <div className="flex space-x-4">
               <button 
+                onClick={() => setShowQuarterlyReport(!showQuarterlyReport)}
+                className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Rapport IA Trimestriel
+              </button>
+              <button 
                 onClick={fetchRoutes}
                 className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
@@ -128,6 +179,122 @@ const RouteManagement = () => {
             </div>
           </div>
         </div>
+
+        {/* Quarterly AI Report Section */}
+        {showQuarterlyReport && (
+          <div className="mb-8 bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <Sparkles className="h-5 w-5 mr-2 text-purple-600" />
+                Rapport IA - Analyse Trimestrielle des Routes
+              </h2>
+              <div className="flex space-x-3">
+                <button
+                  onClick={triggerManualQuarterlyAnalysis}
+                  disabled={reportLoading}
+                  className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {reportLoading ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <PlayCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Déclencher Analyse
+                </button>
+                <button
+                  onClick={fetchQuarterlyReport}
+                  disabled={reportLoading}
+                  className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Actualiser
+                </button>
+              </div>
+            </div>
+
+            {reportLoading ? (
+              <div className="text-center py-8">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
+                <p className="text-gray-600">Chargement du rapport trimestriel...</p>
+              </div>
+            ) : quarterlyReport ? (
+              <div className="space-y-6">
+                {/* Report Header */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <Calendar className="h-5 w-5 text-blue-600 mr-2" />
+                      <span className="text-sm text-blue-800 font-medium">Période d'analyse</span>
+                    </div>
+                    <p className="text-lg font-semibold text-blue-900 mt-1">
+                      {quarterlyReport.analysisStartDate ? new Date(quarterlyReport.analysisStartDate).toLocaleDateString('fr-FR') : 'N/A'} - 
+                      {quarterlyReport.analysisEndDate ? new Date(quarterlyReport.analysisEndDate).toLocaleDateString('fr-FR') : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <TrendingUp className="h-5 w-5 text-green-600 mr-2" />
+                      <span className="text-sm text-green-800 font-medium">Score Performance Moyen</span>
+                    </div>
+                    <p className="text-lg font-semibold text-green-900 mt-1">
+                      {quarterlyReport.averagePerformanceScore ? `${quarterlyReport.averagePerformanceScore.toFixed(1)}/100` : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <Award className="h-5 w-5 text-purple-600 mr-2" />
+                      <span className="text-sm text-purple-800 font-medium">Routes Analysées</span>
+                    </div>
+                    <p className="text-lg font-semibold text-purple-900 mt-1">
+                      {quarterlyReport.totalRoutesAnalyzed || 0}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Recommendations */}
+                {quarterlyReport.recommendations && quarterlyReport.recommendations.length > 0 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-yellow-800 flex items-center mb-3">
+                      <AlertCircle className="h-5 w-5 mr-2" />
+                      Recommandations IA
+                    </h3>
+                    <ul className="space-y-2">
+                      {quarterlyReport.recommendations.map((recommendation, index) => (
+                        <li key={index} className="text-yellow-700 flex items-start">
+                          <span className="w-2 h-2 bg-yellow-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                          {recommendation}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Report Summary */}
+                {quarterlyReport.summary && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 mb-3">Résumé de l'Analyse</h3>
+                    <p className="text-gray-700 leading-relaxed">{quarterlyReport.summary}</p>
+                  </div>
+                )}
+
+                {/* Next Analysis Date */}
+                {quarterlyReport.nextAnalysisDate && (
+                  <div className="text-sm text-gray-600 text-center">
+                    Prochaine analyse automatique prévue le {new Date(quarterlyReport.nextAnalysisDate).toLocaleDateString('fr-FR')}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-600">Aucun rapport trimestriel disponible</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Déclenchez une analyse manuelle pour générer le premier rapport
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
