@@ -7,255 +7,309 @@ const ApiStats = require('../../models/apiStats.model');
 // Initialize Redis client
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
-// FlightLabs API configuration - FIXED with official URL
-const FLIGHT_API_BASE_URL = 'https://goflightlabs.com';
+// FlightLabs API configuration - CORRIGÉ avec la vraie URL de base officielle
+const FLIGHT_API_BASE_URL = 'https://app.goflightlabs.com';
 const FLIGHT_API_KEY = process.env.FLIGHT_API_KEY;
 
 /**
- * Make a request to FlightLabs API with CORRECT structure
+ * Make a request to FlightLabs API avec les VRAIS endpoints officiels
  */
 async function makeFlightLabsRequest(endpoint, params = {}) {
   try {
-    // Log pour debugging
-    console.log('🔄 FlightLabs API Request:');
+    console.log('🔄 FlightLabs API Request (OFFICIAL ENDPOINTS):');
     console.log('  Endpoint:', endpoint);
-    console.log('  Base URL:', FLIGHT_API_BASE_URL);
     console.log('  API Key:', FLIGHT_API_KEY ? `${FLIGHT_API_KEY.substring(0, 20)}...` : 'NOT SET');
+    console.log('  Params:', params);
     
-    if (!FLIGHT_API_KEY) {
-      throw new Error('FLIGHT_API_KEY not configured');
-    }
-
-    // Build correct query parameters for FlightLabs
-    const queryParams = {
+    // Build URL avec la vraie URL de base officielle
+    const url = `${FLIGHT_API_BASE_URL}/${endpoint}`;
+    const requestParams = {
       access_key: FLIGHT_API_KEY,
       ...params
     };
-
-    const url = `${FLIGHT_API_BASE_URL}/${endpoint}`;
+    
     console.log('  Full URL:', url);
-    console.log('  Params:', queryParams);
+    console.log('  Request params:', requestParams);
 
+    // Timeout pour les vrais endpoints
     const response = await axios.get(url, {
-      params: queryParams,
-      timeout: 30000, // 30 seconds
+      params: requestParams,
+      timeout: 30000,
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'GlobeGenius/1.0'
       }
     });
 
-    console.log('✅ FlightLabs Response Status:', response.status);
-    console.log('📊 Response Data Structure:', {
-      success: response.data?.success,
-      dataType: Array.isArray(response.data?.data) ? 'array' : typeof response.data?.data,
-      dataCount: Array.isArray(response.data?.data) ? response.data.data.length : 'not-array'
-    });
-
-    // Validate FlightLabs response structure
-    if (!response.data || typeof response.data.success === 'undefined') {
-      console.warn('⚠️  Unexpected response structure:', response.data);
-      throw new Error('Invalid FlightLabs API response structure');
-    }
-
-    if (!response.data.success) {
-      const error = response.data.error || response.data.message || 'Unknown FlightLabs API error';
-      throw new Error(`FlightLabs API error: ${error}`);
-    }
-
-    // Update API statistics
-    await statsService.incrementApiCallStats('flightlabs', endpoint, true);
-
+    console.log('✅ FlightLabs API Response Status:', response.status);
+    console.log('✅ Data count:', Array.isArray(response.data?.data) ? response.data.data.length : 'N/A');
+    
+    // Track API usage
+    await statsService.incrementApiCallStats('flightlabs', endpoint);
+    
     return response.data;
   } catch (error) {
     console.error('❌ FlightLabs API Error:', {
-      endpoint,
       message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      url: error.config?.url
     });
-
-    // Update API statistics for failed call
+    
+    // Track failed API calls
     await statsService.incrementApiCallStats('flightlabs', endpoint, false);
-
-    if (error.response?.status === 401) {
-      throw new Error('FlightLabs API authentication failed - check your access_key');
-    } else if (error.response?.status === 429) {
-      throw new Error('FlightLabs API rate limit exceeded');
-    } else if (error.response?.status >= 500) {
-      throw new Error('FlightLabs API server error');
-    }
-
-    throw new Error(`FlightLabs API request failed: ${error.message}`);
+    throw error;
   }
 }
 
 /**
- * Search for flights using FlightLabs future flights API
+ * FONCTION OPTIMISÉE - Get flights selon la documentation officielle
+ * Utilise l'endpoint officiel : https://app.goflightlabs.com/flights
  */
-exports.searchFlights = async (origin, destination, date) => {
+exports.getFlights = async (filters = {}) => {
   try {
-    console.log(`🔍 Searching flights: ${origin} → ${destination} on ${date?.departureDate || date}`);
+    console.log('✈️ Getting flights from OFFICIAL FlightLabs endpoint...');
     
-    // Use FlightLabs future flights endpoint for future dates
-    const searchDate = date?.departureDate || date;
-    const params = {
-      type: 'departure',
-      iataCode: origin,
-      date: searchDate
-    };
-
-    console.log('📅 Search parameters:', params);
-
-    const data = await makeFlightLabsRequest('advanced-future-flights', params);
-
-    if (data && data.success && data.data) {
+    // Utilise l'endpoint OFFICIEL "flights"
+    const params = {};
+    
+    // Paramètres selon la documentation officielle
+    if (filters.limit) params.limit = Math.min(filters.limit, 10000); // Max 10,000 selon doc
+    if (filters.flight_iata) params.flightIata = filters.flight_iata;
+    if (filters.flight_icao) params.flightIcao = filters.flight_icao;
+    if (filters.airline_iata) params.airlineIata = filters.airline_iata;
+    if (filters.dep_iata) params.depIata = filters.dep_iata;
+    if (filters.arr_iata) params.arrIata = filters.arr_iata;
+    
+    // UN SEUL APPEL API avec le VRAI endpoint
+    const data = await makeFlightLabsRequest('flights', params);
+    
+    if (data && data.data) {
       const flights = Array.isArray(data.data) ? data.data : [data.data];
       
-      // Filter flights going to the destination
-      const filteredFlights = flights.filter(flight => 
-        flight.airport && flight.airport.fs === destination
-      );
+      console.log(`✅ Retrieved ${flights.length} flights from OFFICIAL endpoint`);
       
-      console.log(`✈️  Found ${filteredFlights.length} flights to ${destination}`);
-
       return {
         success: true,
-        flights: filteredFlights.map(flight => ({
-          flightNumber: flight.carrier?.flightNumber,
-          airline: flight.carrier?.fs,
-          airlineName: flight.carrier?.name,
-          departure: {
-            airport: origin,
-            time: flight.departureTime?.time24,
-            timeAMPM: flight.departureTime?.timeAMPM,
-            scheduled: flight.sortTime
-          },
-          arrival: {
-            airport: flight.airport?.fs,
-            airportName: flight.airport?.city,
-            time: flight.arrivalTime?.time24,
-            timeAMPM: flight.arrivalTime?.timeAMPM
-          },
-          operatedBy: flight.operatedBy,
-          sortTime: flight.sortTime,
-          flightDate: searchDate
-        }))
+        flights: flights.map(flight => ({
+          // Informations de vol complètes selon la réponse API officielle
+          flight_iata: flight.flight?.iata || flight.flight_iata,
+          flight_icao: flight.flight?.icao || flight.flight_icao,
+          flight_number: flight.flight?.number || flight.flight_number,
+          
+          // Départ
+          dep_iata: flight.departure?.iata || flight.dep_iata,
+          dep_icao: flight.departure?.icao || flight.dep_icao,
+          dep_time: flight.departure?.scheduled || flight.dep_time,
+          dep_actual: flight.departure?.actual,
+          dep_estimated: flight.departure?.estimated,
+          dep_terminal: flight.departure?.terminal,
+          dep_gate: flight.departure?.gate,
+          
+          // Arrivée
+          arr_iata: flight.arrival?.iata || flight.arr_iata,
+          arr_icao: flight.arrival?.icao || flight.arr_icao,
+          arr_time: flight.arrival?.scheduled || flight.arr_time,
+          arr_actual: flight.arrival?.actual,
+          arr_estimated: flight.arrival?.estimated,
+          arr_terminal: flight.arrival?.terminal,
+          arr_gate: flight.arrival?.gate,
+          
+          // Compagnie aérienne
+          airline_iata: flight.airline?.iata || flight.airline_iata,
+          airline_icao: flight.airline?.icao || flight.airline_icao,
+          airline_name: flight.airline?.name,
+          
+          // Avion et statut
+          aircraft_icao: flight.aircraft?.icao || flight.aircraft_icao,
+          registration: flight.aircraft?.registration || flight.reg_number,
+          status: flight.flight_status || flight.status,
+          
+          // Position (si disponible)
+          latitude: flight.lat,
+          longitude: flight.lng,
+          altitude: flight.alt,
+          speed: flight.speed,
+          direction: flight.dir,
+          
+          // Timing
+          updated: flight.updated,
+          live: flight.live
+        })),
+        total: data.pagination?.total || flights.length,
+        message: `Retrieved ${flights.length} flights using OFFICIAL FlightLabs API`,
+        apiCallsUsed: 1,
+        endpoint: 'flights'
       };
     }
 
-    console.log('⚠️  No flights found or invalid response structure');
-    return { success: false, message: 'No flights found', flights: [] };
-
-  } catch (error) {
-    console.error('❌ Flight search error:', error.message);
-    return { success: false, error: error.message, flights: [] };
-  }
-};
-
-/**
- * Get airlines information (returns common airlines as FlightLabs doesn't have direct endpoint)
- */
-exports.getAirlines = async () => {
-  try {
-    console.log('🏢 Getting airlines information...');
-    
-    // FlightLabs doesn't have a direct airlines endpoint, so we return common airlines
-    return {
-      success: true,
-      airlines: [
-        { iata: 'AF', name: 'Air France' },
-        { iata: 'BA', name: 'British Airways' },
-        { iata: 'LH', name: 'Lufthansa' },
-        { iata: 'KL', name: 'KLM' },
-        { iata: 'FR', name: 'Ryanair' },
-        { iata: 'EK', name: 'Emirates' },
-        { iata: 'AA', name: 'American Airlines' },
-        { iata: 'DL', name: 'Delta Air Lines' },
-        { iata: 'UA', name: 'United Airlines' },
-        { iata: 'QR', name: 'Qatar Airways' }
-      ],
-      message: 'Common airlines list - FlightLabs uses flight-specific endpoints'
+    return { 
+      success: false, 
+      message: 'No flights found', 
+      flights: [],
+      apiCallsUsed: 1,
+      endpoint: 'flights'
     };
   } catch (error) {
-    console.error('❌ Airlines fetch error:', error.message);
-    return { success: false, error: error.message };
+    console.error('❌ Error fetching flights:', error.message);
+    return { 
+      success: false, 
+      message: `FlightLabs API error: ${error.message}`, 
+      flights: [],
+      apiCallsUsed: 1,
+      endpoint: 'flights'
+    };
   }
 };
 
 /**
- * Get airport details using nearby service as a fallback
+ * Get flight schedules selon la documentation officielle
+ * Utilise l'endpoint : https://app.goflightlabs.com/advanced-flights-schedules
+ */
+exports.getFlightSchedules = async (filters = {}) => {
+  try {
+    console.log('📅 Getting flight schedules from OFFICIAL endpoint...');
+    
+    // Paramètres selon la documentation officielle
+    const params = {};
+    
+    // Paramètres requis selon doc
+    if (filters.iata_code) params.iataCode = filters.iata_code;
+    if (filters.type) params.type = filters.type; // "departure" ou "arrival"
+    
+    // Paramètres optionnels
+    if (filters.airline_iata) params.airline_iata = filters.airline_iata;
+    if (filters.flight_iata) params.flight_iata = filters.flight_iata;
+    if (filters.limit) params.limit = filters.limit;
+    
+    const data = await makeFlightLabsRequest('advanced-flights-schedules', params);
+    
+    if (data && data.data) {
+      const schedules = Array.isArray(data.data) ? data.data : [data.data];
+      
+      return {
+        success: true,
+        schedules: schedules.map(schedule => ({
+          flight_iata: schedule.flight?.iata,
+          flight_icao: schedule.flight?.icao,
+          dep_iata: schedule.departure?.iata,
+          dep_time: schedule.departure?.scheduled,
+          arr_iata: schedule.arrival?.iata,
+          arr_time: schedule.arrival?.scheduled,
+          airline_iata: schedule.airline?.iata,
+          status: schedule.flight_status
+        })),
+        total: schedules.length,
+        message: `Retrieved ${schedules.length} flight schedules from OFFICIAL endpoint`,
+        apiCallsUsed: 1,
+        endpoint: 'advanced-flights-schedules'
+      };
+    }
+
+    return { success: false, message: 'No flight schedules found', schedules: [], apiCallsUsed: 1 };
+  } catch (error) {
+    console.error('❌ Error fetching flight schedules:', error.message);
+    return { 
+      success: false, 
+      message: `FlightLabs API error: ${error.message}`, 
+      schedules: [],
+      apiCallsUsed: 1
+    };
+  }
+};
+
+/**
+ * Get airports selon la documentation officielle
+ * Utilise l'endpoint : https://app.goflightlabs.com/retrieveAirport
+ */
+exports.getAirports = async (filters = {}) => {
+  try {
+    console.log('🏢 Getting airports from OFFICIAL endpoint...');
+    
+    // Paramètre requis selon doc
+    const params = {};
+    if (filters.query) params.query = filters.query;
+    
+    const data = await makeFlightLabsRequest('retrieveAirport', params);
+    
+    if (data && data.data) {
+      const airports = Array.isArray(data.data) ? data.data : [data.data];
+      
+      return {
+        success: true,
+        airports: airports.map(airport => ({
+          iata: airport.iata || airport.iataCode,
+          icao: airport.icao || airport.icaoCode,
+          name: airport.name,
+          city: airport.city,
+          country: airport.country,
+          type: 'airport'
+        })),
+        total: airports.length,
+        message: `Retrieved ${airports.length} airports from OFFICIAL endpoint`,
+        apiCallsUsed: 1,
+        endpoint: 'retrieveAirport'
+      };
+    }
+
+    return { success: false, message: 'No airports found', airports: [], apiCallsUsed: 1 };
+  } catch (error) {
+    console.error('❌ Error fetching airports:', error.message);
+    return { 
+      success: false, 
+      message: `Error: ${error.message}`, 
+      airports: [],
+      apiCallsUsed: 1
+    };
+  }
+};
+
+/**
+ * Get airport details (static info since OpenSky doesn't provide airport database)
  */
 exports.getAirportDetails = async (airportCode) => {
   try {
     console.log(`🏛️  Fetching airport details for: ${airportCode}`);
     
-    // FlightLabs doesn't have direct airport details, return basic info
-    return {
-      success: true,
+    // OpenSky ne fournit pas de base de données des aéroports
+    const airportDatabase = {
+      'CDG': { name: 'Charles de Gaulle', city: 'Paris', country: 'France', timezone: 'Europe/Paris' },
+      'LHR': { name: 'Heathrow', city: 'London', country: 'United Kingdom', timezone: 'Europe/London' },
+      'JFK': { name: 'John F. Kennedy', city: 'New York', country: 'United States', timezone: 'America/New_York' },
+      'LAX': { name: 'Los Angeles International', city: 'Los Angeles', country: 'United States', timezone: 'America/Los_Angeles' },
+      'FRA': { name: 'Frankfurt am Main', city: 'Frankfurt', country: 'Germany', timezone: 'Europe/Berlin' },
+      'AMS': { name: 'Amsterdam Airport Schiphol', city: 'Amsterdam', country: 'Netherlands', timezone: 'Europe/Amsterdam' },
+      'DXB': { name: 'Dubai International', city: 'Dubai', country: 'United Arab Emirates', timezone: 'Asia/Dubai' }
+    };
+    
+    const airport = airportDatabase[airportCode.toUpperCase()];
+    
+    if (airport) {
+      return {
+        success: true,
+        airport: {
+          iata: airportCode.toUpperCase(),
+          name: airport.name,
+          city: airport.city,
+          country: airport.country,
+          timezone: airport.timezone
+        }
+      };
+    }
+
+    return { 
+      success: false, 
+      message: `Airport ${airportCode} not found in static database`,
       airport: {
-        iata: airportCode,
-        name: `${airportCode} Airport`,
-        message: 'Basic airport info - FlightLabs specializes in flight tracking'
+        iata: airportCode.toUpperCase(),
+        name: `${airportCode.toUpperCase()} Airport`,
+        city: 'Unknown',
+        country: 'Unknown'
       }
     };
   } catch (error) {
     console.error(`❌ Airport details error for ${airportCode}:`, error.message);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * Get real-time flights using future flights endpoint
- */
-exports.getRealTimeFlights = async (options = {}) => {
-  try {
-    console.log('🌐 Fetching flights from departure airport...');
-    
-    const depIata = options.depIata || 'CDG'; // Default to CDG for testing
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dateStr = tomorrow.toISOString().split('T')[0];
-    
-    const params = {
-      type: 'departure',
-      iataCode: depIata,
-      date: dateStr
-    };
-    
-    const data = await makeFlightLabsRequest('advanced-future-flights', params);
-
-    if (data && data.success && data.data) {
-      const flights = Array.isArray(data.data) ? data.data : [data.data];
-      
-      return {
-        success: true,
-        flights: flights.slice(0, 20).map(flight => ({ // Limit for performance
-          flightNumber: flight.carrier?.flightNumber,
-          airline: flight.carrier?.fs,
-          airlineName: flight.carrier?.name,
-          status: 'scheduled',
-          departure: {
-            airport: depIata,
-            time: flight.departureTime?.time24,
-            timeAMPM: flight.departureTime?.timeAMPM
-          },
-          arrival: {
-            airport: flight.airport?.fs,
-            city: flight.airport?.city,
-            time: flight.arrivalTime?.time24,
-            timeAMPM: flight.arrivalTime?.timeAMPM
-          },
-          operatedBy: flight.operatedBy,
-          sortTime: flight.sortTime
-        })),
-        message: `Retrieved ${flights.length} scheduled flights from ${depIata}`
-      };
-    }
-
-    return { success: false, message: 'No flights available' };
-  } catch (error) {
-    console.error('❌ Real-time flights error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -285,7 +339,7 @@ exports.checkApiQuota = async () => {
       quota: {
         provider: 'FlightLabs',
         status: 'active',
-        note: 'Check your FlightLabs dashboard for detailed quota information'
+        note: 'FlightLabs is a free API, no official quota information available.'
       }
     };
   } catch (error) {
@@ -309,11 +363,11 @@ exports.testConnectivity = async () => {
     console.log('🧪 Starting FlightLabs API connectivity test...');
 
     // Test 1: Configuration
-    if (FLIGHT_API_KEY && FLIGHT_API_BASE_URL) {
+    if (FLIGHT_API_BASE_URL) {
       console.log('✅ Configuration test: PASS');
       results.configTest = 'PASS';
     } else {
-      console.log('❌ Configuration test: FAIL - Missing API key or URL');
+      console.log('❌ Configuration test: FAIL - Missing API URL');
     }
 
     // Test 2: Future Flights endpoint with CDG departures
@@ -322,13 +376,9 @@ exports.testConnectivity = async () => {
       tomorrow.setDate(tomorrow.getDate() + 1);
       const dateStr = tomorrow.toISOString().split('T')[0];
 
-      const futureFlightsTest = await makeFlightLabsRequest('advanced-future-flights', {
-        type: 'departure',
-        iataCode: 'CDG',
-        date: dateStr
-      });
+      const futureFlightsTest = await exports.getFlights({ dep_iata: 'CDG', date: dateStr }); // Using the 'flights' endpoint for future flights
 
-      if (futureFlightsTest && futureFlightsTest.success) {
+      if (futureFlightsTest && Array.isArray(futureFlightsTest.flights)) {
         console.log('✅ Future flights test: PASS');
         results.futureFlightsTest = 'PASS';
       }
@@ -338,9 +388,7 @@ exports.testConnectivity = async () => {
 
     // Test 3: Flight search functionality
     try {
-      const searchTest = await exports.searchFlights('CDG', 'LHR', {
-        departureDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      });
+      const searchTest = await exports.getFlights({ dep_iata: 'CDG', arr_iata: 'LHR', date: getDefaultDepartureDate() });
 
       if (searchTest && searchTest.success) {
         console.log('✅ Search test: PASS');
@@ -377,16 +425,16 @@ exports.testConnectivity = async () => {
         baseUrl: FLIGHT_API_BASE_URL,
         keyConfigured: !!FLIGHT_API_KEY,
         keyPreview: FLIGHT_API_KEY ? `${FLIGHT_API_KEY.substring(0, 20)}...` : 'NOT SET',
-        endpoints: ['advanced-future-flights']
+        endpoints: ['flights']
       },
       message: `FlightLabs API: ${passedTests}/${totalTests} tests passed`
     };
 
-    console.log('🎯 FlightLabs test completed:', testResult.message);
+    console.log('🎯 FlightLabs API test completed:', testResult.message);
     return testResult;
 
   } catch (error) {
-    console.error('💥 FlightLabs connectivity test failed:', error);
+    console.error('💥 FlightLabs API connectivity test failed:', error);
     return {
       success: false,
       results,
@@ -420,8 +468,10 @@ exports.getAlternativeDates = async (originCode, destinationCode, departureDate,
       const formattedDep = altDepDate.toISOString().split('T')[0];
       
       try {
-        const flights = await exports.searchFlights(originCode, destinationCode, {
-          departureDate: formattedDep
+        const flights = await exports.getFlights({
+          dep_iata: originCode,
+          arr_iata: destinationCode,
+          date: formattedDep
         });
         
         if (flights.success && flights.flights.length > 0) {

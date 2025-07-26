@@ -27,11 +27,11 @@ const ApiStats = () => {
     fetchApiStats();
   }, [dateRange]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds - VRAIES DONNÉES EN TEMPS RÉEL
   useEffect(() => {
     const interval = setInterval(() => {
       if (!loading) {
-        console.log('🔄 Auto-refreshing API stats...');
+        console.log('🔄 Auto-refresh API stats (REAL DATA)...');
         fetchApiStats();
       }
     }, 30000);
@@ -108,7 +108,17 @@ const ApiStats = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white shadow rounded-lg p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Statistiques API</h1>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Statistiques API - DONNÉES RÉELLES</h1>
+            <div className="flex items-center space-x-2 mt-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <p className="text-sm text-green-600 font-medium">
+                Mise à jour automatique toutes les 30 secondes
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Filtres de date */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

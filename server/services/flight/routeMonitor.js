@@ -312,11 +312,12 @@ exports.performInitialTest = async () => {
       
       // Test non-bloquant
       try {
-        await flightService.searchFlights(
-          testRoute.departureAirport.code,
-          testRoute.destinationAirport.code,
-          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // +7 jours
-        );
+        await flightService.getFlights({
+          dep_iata: testRoute.departureAirport.code,
+          arr_iata: testRoute.destinationAirport.code,
+          date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          limit: 5
+        });
         console.log('✅ API GoFlightLabs connectée');
       } catch (apiError) {
         console.warn('⚠️  API GoFlightLabs indisponible, monitoring continuera:', apiError.message);
@@ -335,24 +336,33 @@ exports.performInitialTest = async () => {
  * Planification du monitoring par tiers avec fréquences adaptées
  */
 exports.scheduleMonitoringByTier = async () => {
-  console.log('📅 Planification du monitoring par tiers...');
+  console.log('📅 Planification du monitoring par tiers selon STRATÉGIE 3-TIERS...');
+  console.log('🎯 Tier 1 (Ultra-priority): Toutes les 4h - 500 appels/jour');
+  console.log('🎯 Tier 2 (Priority): Toutes les 6h - 350 appels/jour');
+  console.log('🎯 Tier 3 (Complementary): Toutes les 12h - 150 appels/jour');
   
-  // Tier 1 (Ultra-priority) - Toutes les 3h (8 fois/jour)
-  cron.schedule('0 */3 * * *', () => {
-    this.monitorRoutesByTier('ultra-priority', API_ALLOCATION.tier1.dailyCalls / 8);
+  // Tier 1 (Ultra-priority) - Toutes les 4h (6 fois/jour) - STRATÉGIE RESPECTÉE
+  cron.schedule('0 */4 * * *', () => {
+    console.log('🚀 TIER 1 - Monitoring ultra-priority (toutes les 4h)');
+    this.monitorRoutesByTier('ultra-priority', Math.floor(API_ALLOCATION.tier1.dailyCalls / 6));
   });
   
-  // Tier 2 (Priority) - Toutes les 6h (4 fois/jour)  
+  // Tier 2 (Priority) - Toutes les 6h (4 fois/jour) - STRATÉGIE RESPECTÉE
   cron.schedule('0 */6 * * *', () => {
-    this.monitorRoutesByTier('priority', API_ALLOCATION.tier2.dailyCalls / 4);
+    console.log('🎯 TIER 2 - Monitoring priority (toutes les 6h)');
+    this.monitorRoutesByTier('priority', Math.floor(API_ALLOCATION.tier2.dailyCalls / 4));
   });
   
-  // Tier 3 (Complementary) - Toutes les 12h (2 fois/jour)
+  // Tier 3 (Complementary) - Toutes les 12h (2 fois/jour) - STRATÉGIE RESPECTÉE
   cron.schedule('0 */12 * * *', () => {
-    this.monitorRoutesByTier('complementary', API_ALLOCATION.tier3.dailyCalls / 2);
+    console.log('📊 TIER 3 - Monitoring complementary (toutes les 12h)');
+    this.monitorRoutesByTier('complementary', Math.floor(API_ALLOCATION.tier3.dailyCalls / 2));
   });
   
-  console.log('✅ Monitoring planifié pour tous les tiers');
+  console.log('✅ Monitoring planifié selon STRATÉGIE 3-TIERS stricte');
+  console.log('   📈 Tier 1: 4h → 6 exécutions/jour × ~83 appels = 500 appels/jour');
+  console.log('   📊 Tier 2: 6h → 4 exécutions/jour × ~87 appels = 350 appels/jour');  
+  console.log('   📉 Tier 3: 12h → 2 exécutions/jour × 75 appels = 150 appels/jour');
 };
 
 /**
@@ -450,13 +460,13 @@ exports.processRoute = async (route) => {
     const departureDate = new Date(Date.now() + (Math.floor(Math.random() * 23) + 7) * 24 * 60 * 60 * 1000);
     const returnDate = new Date(departureDate.getTime() + (Math.floor(Math.random() * 14) + 3) * 24 * 60 * 60 * 1000);
     
-    // Recherche de vols
-    const flights = await flightService.searchFlights(
-      route.departureAirport.code,
-      route.destinationAirport.code,
-      departureDate,
-      returnDate
-    );
+    // Recherche de vols avec la nouvelle API
+    const flights = await flightService.getFlights({
+      dep_iata: route.departureAirport.code,
+      arr_iata: route.destinationAirport.code,
+      date: departureDate.toISOString().split('T')[0],
+      limit: 10
+    });
     
     dailyApiCallCount++;
     await incrementApiCallStats('flights', 'success');

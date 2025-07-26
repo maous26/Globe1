@@ -20,19 +20,25 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchDashboardData();
     
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 30 seconds with real-time data
     const interval = setInterval(() => {
-      fetchDashboardData();
+      fetchDashboardData(true); // Auto-refresh mode
     }, 30000);
     
     return () => clearInterval(interval);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isAutoRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isAutoRefresh) setLoading(true);
       setError('');
-      console.log('🔄 Fetching dashboard data...');
+      
+      if (isAutoRefresh) {
+        console.log('🔄 Auto-refresh dashboard data...');
+      } else {
+        console.log('🔄 Fetching dashboard data...');
+      }
+      
       const response = await adminAPI.getDashboardStats();
       setDashboardData(response.data);
       setLastUpdated(new Date());
@@ -41,7 +47,7 @@ const AdminDashboard = () => {
       setError('Erreur lors du chargement des données');
       console.error('❌ Error fetching dashboard data:', err);
     } finally {
-      setLoading(false);
+      if (!isAutoRefresh) setLoading(false);
     }
   };
 
@@ -105,13 +111,21 @@ const AdminDashboard = () => {
     <div className="p-6">
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrateur</h1>
-          <p className="text-gray-600 mt-2">Vue d'ensemble des statistiques de GlobeGenius</p>
-          {lastUpdated && (
-            <p className="text-xs text-gray-500 mt-1">
-              Dernière mise à jour: {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrateur</h1>
+        <p className="text-gray-600 mt-2">Vue d'ensemble des statistiques de GlobeGenius - DONNÉES RÉELLES</p>
+          <div className="flex items-center space-x-4 mt-2">
+            {lastUpdated && (
+              <p className="text-xs text-gray-500">
+                Dernière mise à jour: {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <p className="text-xs text-green-600 font-medium">
+                Mise à jour automatique (30s)
+              </p>
+            </div>
+          </div>
         </div>
         <button
           onClick={fetchDashboardData}

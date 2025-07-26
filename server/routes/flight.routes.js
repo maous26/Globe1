@@ -13,9 +13,11 @@ router.get('/search', async (req, res) => {
       return res.status(400).json({ message: 'Origin and destination are required' });
     }
     
-    const flights = await flightService.searchFlights(origin, destination, {
-      departureDate,
-      returnDate
+    const flights = await flightService.getFlights({
+      dep_iata: origin,
+      arr_iata: destination,
+      date: departureDate,
+      limit: 20
     });
     
     res.json(flights);
@@ -120,7 +122,11 @@ router.get('/test/flights/:origin/:destination', async (req, res) => {
     const { origin, destination } = req.params;
     console.log(`Testing FlightLabs flight search: ${origin} -> ${destination}`);
     
-    const flights = await flightService.searchFlights(origin, destination);
+    const flights = await flightService.getFlights({
+      dep_iata: origin,
+      arr_iata: destination,
+      limit: 10
+    });
     
     res.json({
       success: true,

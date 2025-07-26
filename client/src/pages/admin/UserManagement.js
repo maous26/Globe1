@@ -159,12 +159,12 @@ const UserManagement = () => {
             )}
             Actualiser
           </button>
-          <a 
-            href="/admin/dashboard" 
-            className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-          >
-            ← Retour au tableau de bord
-          </a>
+        <a 
+          href="/admin/dashboard" 
+          className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+        >
+          ← Retour au tableau de bord
+        </a>
         </div>
       </div>
 
