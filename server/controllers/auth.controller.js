@@ -43,10 +43,12 @@ exports.registerBasic = async (req, res) => {
       { expiresIn: '7d' }
     );
     
-    // Send welcome email with password setup link
-    const { sendWelcomeEmail } = require('../services/email/emailService');
-    const setupLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/setup-password?token=${token}`;
-    await sendWelcomeEmail(user, setupLink);
+    // Send welcome email for free users (new beautiful template)
+    const { sendWelcomeFreeEmail } = require('../services/email/emailService');
+    await sendWelcomeFreeEmail({
+      email: user.email,
+      departureAirport: departureAirport
+    });
     
     res.status(201).json({ 
       message: 'Inscription réussie! Vérifiez votre email pour configurer votre compte',
@@ -88,6 +90,13 @@ exports.registerPremium = async (req, res) => {
         
         await user.save();
         
+        // Send Premium welcome email for upgraded user
+        const { sendWelcomePremiumEmail } = require('../services/email/emailService');
+        await sendWelcomePremiumEmail({
+          email: user.email,
+          firstName: user.firstName
+        });
+        
         const token = jwt.sign(
           { userId: user._id },
           process.env.JWT_SECRET,
@@ -124,9 +133,12 @@ exports.registerPremium = async (req, res) => {
       { expiresIn: '30d' }
     );
     
-    // Send welcome email
-    const { sendWelcomeEmail } = require('../services/email/emailService');
-    await sendWelcomeEmail(user);
+    // Send Premium welcome email for new user
+    const { sendWelcomePremiumEmail } = require('../services/email/emailService');
+    await sendWelcomePremiumEmail({
+      email: user.email,
+      firstName: user.firstName
+    });
     
     res.status(201).json({
       message: 'Inscription Premium réussie!',

@@ -54,6 +54,7 @@ const healthRoutes = require('./routes/health.routes');
 
 // Services
 const { startRouteMonitoring } = require('./services/flight/routeMonitor');
+const { baggageAIAgent } = require('./services/baggage/baggageAIAgent');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
@@ -84,6 +85,15 @@ app.listen(PORT, async () => {
     console.log('✅ Route monitoring initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize route monitoring:', error);
+  }
+
+  // Initialize baggage AI agent
+  try {
+    console.log('🤖 Baggage AI Agent initialized and scheduled');
+    console.log('📅 Automatic updates: 1er du mois à 02:00 & Dimanche à 03:00');
+    console.log('🎒 Baggage policies system ready');
+  } catch (error) {
+    console.error('❌ Failed to initialize baggage AI agent:', error);
   }
 });
 

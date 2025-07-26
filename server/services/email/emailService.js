@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const sgMail = require('@sendgrid/mail');
 const { enrichDealWithContent } = require('../ai/dealValidationService');
+// const { getBaggagePolicy } = require('../baggage/baggageImportService');
 const fs = require('fs');
 const path = require('path');
 const handlebars = require('handlebars');
@@ -41,6 +42,56 @@ if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.
 const templateCache = {};
 
 /**
+ * Send welcome email to free users
+ * @param {Object} user - User object with email and basic info
+ * @returns {Promise<boolean>} - Success status
+ */
+async function sendWelcomeFreeEmail(user) {
+  try {
+    console.log('📧 Envoi de l\'email de bienvenue gratuit à:', user.email);
+
+    // Load welcome-free template
+    const templateName = 'welcome-free';
+    const templateVars = {
+      email: user.email,
+      departureAirport: user.departureAirport,
+      premiumUpgradeLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/upgrade`,
+      privacyPolicyLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/privacy`,
+      unsubscribeLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/unsubscribe?email=${encodeURIComponent(user.email)}`
+    };
+
+    // Load and compile template
+    const template = await loadTemplate(templateName);
+    const html = template(templateVars);
+
+    // Prepare email
+    const msg = {
+      to: user.email,
+      from: {
+        email: process.env.SENDGRID_FROM_EMAIL || 'alertes@globegenius.app',
+        name: process.env.SENDGRID_FROM_NAME || 'GlobeGenius'
+      },
+      subject: 'Bienvenue chez GlobeGenius ! Votre chasse aux vols à prix réduits commence maintenant',
+      html: html
+    };
+
+    // Send email
+    if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
+      await sgMail.send(msg);
+      console.log('✅ Email de bienvenue gratuit envoyé avec succès à:', user.email);
+    } else {
+      console.log('📧 [DEV] Email de bienvenue gratuit simulé pour:', user.email);
+      console.log('🎯 Subject:', msg.subject);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'envoi de l\'email de bienvenue gratuit:', error);
+    return false;
+  }
+}
+
+/**
  * Load email template
  * @param {string} templateName - Template name
  * @returns {Promise<Function>} - Compiled Handlebars template
@@ -75,6 +126,59 @@ async function loadTemplate(templateName) {
  * @param {string} setupLink - Password setup link
  * @returns {Promise<boolean>} - Success status
  */
+/**
+ * Send welcome email to premium users
+ * @param {Object} user - User object with email and basic info
+ * @returns {Promise<boolean>} - Success status
+ */
+async function sendWelcomePremiumEmail(user) {
+  try {
+    console.log('🌟 Envoi de l\'email de bienvenue Premium à:', user.email);
+
+    // Load welcome-premium template
+    const templateName = 'welcome-premium';
+    const templateVars = {
+      email: user.email,
+      firstName: user.firstName || '',
+      privacyPolicyLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/privacy`,
+      dashboardLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`,
+      unsubscribeLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/unsubscribe?email=${encodeURIComponent(user.email)}`
+    };
+
+    // Load and compile template
+    const template = await loadTemplate(templateName);
+    const html = template(templateVars);
+
+    // Prepare email
+    const msg = {
+      to: user.email,
+      from: {
+        email: process.env.SENDGRID_FROM_EMAIL || 'alertes@globegenius.app',
+        name: process.env.SENDGRID_FROM_NAME || 'GlobeGenius Premium'
+      },
+      subject: '🌟 Bienvenue chez GlobeGenius Premium ! Votre accès exclusif aux erreurs de prix et vols à -90% est activé',
+      html: html
+    };
+
+    // Send email
+    if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
+      await sgMail.send(msg);
+      console.log('✅ Email de bienvenue Premium envoyé avec succès à:', user.email);
+    } else {
+      console.log('🌟 [DEV] Email de bienvenue Premium simulé pour:', user.email);
+      console.log('🎯 Subject:', msg.subject);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'envoi de l\'email de bienvenue Premium:', error);
+    return false;
+  }
+}
+
+exports.sendWelcomeFreeEmail = sendWelcomeFreeEmail;
+exports.sendWelcomePremiumEmail = sendWelcomePremiumEmail;
+
 exports.sendWelcomeEmail = async (user, setupLink = null) => {
   try {
 
@@ -172,6 +276,62 @@ exports.sendAlertEmail = async (user, alert) => {
         }
       };
     }
+
+    // Récupérer les informations de bagages de la compagnie
+    console.log('🎒 Récupération des politiques de bagages...');
+    let baggageInfo;
+    try {
+      // const baggagePolicy = await getBaggagePolicy(alert.airline);
+    const baggagePolicy = null; // Temporarily disabled
+      
+      if (baggagePolicy) {
+        baggageInfo = {
+          airline: baggagePolicy.airlineName,
+          cabinBaggage: {
+            dimensions: `${baggagePolicy.cabinBaggage.dimensions.length}×${baggagePolicy.cabinBaggage.dimensions.width}×${baggagePolicy.cabinBaggage.dimensions.height} cm`,
+            weight: `${baggagePolicy.cabinBaggage.weight.economy} kg`,
+            pieces: baggagePolicy.cabinBaggage.pieces.economy
+          },
+          checkedBaggage: {
+            pieces: baggagePolicy.checkedBaggage.freeAllowance.economy.pieces,
+            weight: `${baggagePolicy.checkedBaggage.freeAllowance.economy.weight} kg`,
+            excessFee: `${baggagePolicy.checkedBaggage.excessFees.perKg}€/kg supplémentaire`
+          },
+          specialItems: {
+            sports: baggagePolicy.specialItems.sports.allowed ? 
+              `Autorisé (${baggagePolicy.specialItems.sports.fee}€)` : 'Non autorisé',
+            musical: baggagePolicy.specialItems.musical.allowed ? 
+              `Autorisé (${baggagePolicy.specialItems.musical.fee}€)` : 'Non autorisé'
+          },
+          lastUpdated: baggagePolicy.lastUpdated.toLocaleDateString('fr-FR'),
+          available: true
+        };
+        console.log(`✅ Politique de bagages trouvée pour ${alert.airline}`);
+      } else {
+        throw new Error('Politique non trouvée');
+      }
+    } catch (error) {
+      console.log(`⚠️  Politique de bagages non disponible pour ${alert.airline}:`, error.message);
+      baggageInfo = {
+        airline: alert.airline,
+        cabinBaggage: { 
+          dimensions: 'Information non disponible', 
+          weight: 'Vérifier avec la compagnie', 
+          pieces: 1 
+        },
+        checkedBaggage: { 
+          pieces: 1, 
+          weight: 'Vérifier avec la compagnie', 
+          excessFee: 'Vérifier avec la compagnie' 
+        },
+        specialItems: { 
+          sports: 'Vérifier avec la compagnie', 
+          musical: 'Vérifier avec la compagnie' 
+        },
+        lastUpdated: 'Information non disponible',
+        available: false
+      };
+    }
     
     // Load template based on subscription type
     const templateName = user.subscriptionType === 'premium' ? 'alert-premium' : 'alert-free';
@@ -223,7 +383,8 @@ exports.sendAlertEmail = async (user, alert) => {
       description: enrichedAlert.content?.description || `Profitez d'une réduction exceptionnelle sur ce vol aller-retour vers ${alert.destinationAirport.name}.`,
       highlights: enrichedAlert.content?.highlights || [],
       travelTip: enrichedAlert.content?.travelTip || '',
-      bestFor: enrichedAlert.content?.bestFor || []
+      bestFor: enrichedAlert.content?.bestFor || [],
+      baggage: baggageInfo
     });
     
     const msg = {

@@ -1,0 +1,684 @@
+{
+  "compagnies_aeriennes": [
+    {
+      "compagnie": "Lufthansa",
+      "pays": "Allemagne",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-150"
+    },
+    {
+      "compagnie": "Emirates",
+      "pays": "Émirats arabes unis",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "33x25x20",
+      "bagage_cabine_eco": "55x38x20, 7kg",
+      "bagage_soute_eco": "30kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-200"
+    },
+    {
+      "compagnie": "Qatar Airways",
+      "pays": "Qatar",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "33x43x15",
+      "bagage_cabine_eco": "50x37x25, 7kg",
+      "bagage_soute_eco": "23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-200"
+    },
+    {
+      "compagnie": "British Airways",
+      "pays": "Royaume-Uni",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "56x45x25, 23kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "100,00 €"
+    },
+    {
+      "compagnie": "KLM",
+      "pays": "Pays-Bas",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€35-75"
+    },
+    {
+      "compagnie": "Swiss International",
+      "pays": "Suisse",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x10",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€25-60"
+    },
+    {
+      "compagnie": "Austrian Airlines",
+      "pays": "Autriche",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x10",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€15-90"
+    },
+    {
+      "compagnie": "Turkish Airlines",
+      "pays": "Turquie",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "20-30kg selon tarif",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-200"
+    },
+    {
+      "compagnie": "Singapore Airlines",
+      "pays": "Singapour",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 7kg",
+      "bagage_soute_eco": "25-30kg selon tarif",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "American Airlines",
+      "pays": "États-Unis",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "45x35x20",
+      "bagage_cabine_eco": "56x36x23",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "$35-150"
+    },
+    {
+      "compagnie": "Delta Air Lines",
+      "pays": "États-Unis",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "43x33x23",
+      "bagage_cabine_eco": "56x35x23",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "$35-150"
+    },
+    {
+      "compagnie": "United Airlines",
+      "pays": "États-Unis",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "43x25x23",
+      "bagage_cabine_eco": "56x35x23",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "$35-150"
+    },
+    {
+      "compagnie": "Air Canada",
+      "pays": "Canada",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "CAD$50-100"
+    },
+    {
+      "compagnie": "Iberia",
+      "pays": "Espagne",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Brussels Airlines",
+      "pays": "Belgique",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x10",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€30-70"
+    },
+    {
+      "compagnie": "SAS",
+      "pays": "Scandinavie",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€35-75"
+    },
+    {
+      "compagnie": "Finnair",
+      "pays": "Finlande",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€35-75"
+    },
+    {
+      "compagnie": "Etihad Airways",
+      "pays": "Émirats arabes unis",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 7kg",
+      "bagage_soute_eco": "30kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "Cathay Pacific",
+      "pays": "Hong Kong",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 7kg",
+      "bagage_soute_eco": "30kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "Air China",
+      "pays": "Chine",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 7kg",
+      "bagage_soute_eco": "23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "China Eastern",
+      "pays": "Chine",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 7kg",
+      "bagage_soute_eco": "23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "JAL",
+      "pays": "Japon",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x25, 10kg",
+      "bagage_soute_eco": "2x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "¥10,000-20,000"
+    },
+    {
+      "compagnie": "All Nippon Airways",
+      "pays": "Japon",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x25, 10kg",
+      "bagage_soute_eco": "2x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "¥10,000-20,000"
+    },
+    {
+      "compagnie": "Korean Air",
+      "pays": "Corée du Sud",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "2x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "EVA Air",
+      "pays": "Taïwan",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 7kg",
+      "bagage_soute_eco": "2x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "Asiana Airlines",
+      "pays": "Corée du Sud",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 8kg",
+      "bagage_soute_eco": "2x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "Air India",
+      "pays": "Inde",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 7kg",
+      "bagage_soute_eco": "23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "Ethiopian Airlines",
+      "pays": "Éthiopie",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x23, 7kg",
+      "bagage_soute_eco": "23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-150"
+    },
+    {
+      "compagnie": "Ryanair",
+      "pays": "Irlande",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x20, 10kg (Priority)",
+      "bagage_soute_eco": "10/20kg payant",
+      "prix_bagage_cabine": "36,00 €",
+      "prix_bagage_soute": "€9-60"
+    },
+    {
+      "compagnie": "easyJet",
+      "pays": "Royaume-Uni",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "45x36x20",
+      "bagage_cabine_eco": "56x45x25 (payant)",
+      "bagage_soute_eco": "15/23kg payant",
+      "prix_bagage_cabine": "43,00 €",
+      "prix_bagage_soute": "€6-48"
+    },
+    {
+      "compagnie": "Wizz Air",
+      "pays": "Hongrie",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x23 (payant)",
+      "bagage_soute_eco": "10/20kg payant",
+      "prix_bagage_cabine": "10,00 €",
+      "prix_bagage_soute": "€5-118"
+    },
+    {
+      "compagnie": "Vueling",
+      "pays": "Espagne",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x20 (payant)",
+      "bagage_soute_eco": "15/20/25kg payant",
+      "prix_bagage_cabine": "€30-40",
+      "prix_bagage_soute": "€8-120"
+    },
+    {
+      "compagnie": "Volotea",
+      "pays": "Espagne",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x20 (payant)",
+      "bagage_soute_eco": "20/25kg payant",
+      "prix_bagage_cabine": "€9-50",
+      "prix_bagage_soute": "€9-60"
+    },
+    {
+      "compagnie": "Eurowings",
+      "pays": "Allemagne",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x23 (payant)",
+      "bagage_soute_eco": "15/23kg payant",
+      "prix_bagage_cabine": "€25-40",
+      "prix_bagage_soute": "€25-70"
+    },
+    {
+      "compagnie": "Norwegian",
+      "pays": "Norvège",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x23 (payant)",
+      "bagage_soute_eco": "20kg payant",
+      "prix_bagage_cabine": "€25-40",
+      "prix_bagage_soute": "€25-70"
+    },
+    {
+      "compagnie": "Pegasus Airlines",
+      "pays": "Turquie",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x23 (payant)",
+      "bagage_soute_eco": "15/23kg payant",
+      "prix_bagage_cabine": "€25-40",
+      "prix_bagage_soute": "€25-70"
+    },
+    {
+      "compagnie": "Smartwings",
+      "pays": "République tchèque",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x23 (payant)",
+      "bagage_soute_eco": "15/23kg payant",
+      "prix_bagage_cabine": "€25-40",
+      "prix_bagage_soute": "€25-70"
+    },
+    {
+      "compagnie": "Jet2",
+      "pays": "Royaume-Uni",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x23 (payant)",
+      "bagage_soute_eco": "15/23kg payant",
+      "prix_bagage_cabine": "€25-40",
+      "prix_bagage_soute": "€25-70"
+    },
+    {
+      "compagnie": "TUI fly",
+      "pays": "Allemagne",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x40x23 (payant)",
+      "bagage_soute_eco": "20kg payant",
+      "prix_bagage_cabine": "€25-40",
+      "prix_bagage_soute": "€25-70"
+    },
+    {
+      "compagnie": "Air France",
+      "pays": "France",
+      "type": "Traditionnelle",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus (sauf Light)",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-285"
+    },
+    {
+      "compagnie": "Air Corsica",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 8kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€25-70"
+    },
+    {
+      "compagnie": "Air Caraïbes",
+      "pays": "France",
+      "type": "Long-courrier",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Air Austral",
+      "pays": "France",
+      "type": "Long-courrier",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€45-100"
+    },
+    {
+      "compagnie": "Air Caraïbes Atlantique",
+      "pays": "France",
+      "type": "Long-courrier",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Air Calédonie",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Aircalin",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Air Tahiti",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Air Tahiti Nui",
+      "pays": "France",
+      "type": "Long-courrier",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "2x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€50-200"
+    },
+    {
+      "compagnie": "Air Saint-Pierre",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Corsair",
+      "pays": "France",
+      "type": "Loisirs",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "French bee",
+      "pays": "France",
+      "type": "Low-cost long-courrier",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x40x20, 12kg",
+      "bagage_soute_eco": "23kg selon tarif",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "$70-140"
+    },
+    {
+      "compagnie": "Transavia France",
+      "pays": "France",
+      "type": "Low-cost",
+      "bagage_personnel_gratuit": "40x30x20",
+      "bagage_cabine_eco": "55x35x25, 10kg (payant)",
+      "bagage_soute_eco": "15-50kg payant",
+      "prix_bagage_cabine": "15,00 €",
+      "prix_bagage_soute": "€15-150"
+    },
+    {
+      "compagnie": "ASL Airlines France",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Chalair Aviation",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 10kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€25-70"
+    },
+    {
+      "compagnie": "APG Airlines",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 10kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "La Compagnie",
+      "pays": "France",
+      "type": "Boutique",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Twin Jet",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Hop!",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€45-285"
+    },
+    {
+      "compagnie": "Intairline",
+      "pays": "France",
+      "type": "Cargo",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Valljet",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Amelia International",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Ewa Air",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Finistair",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Air Archipels",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Air Loyauté",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Air Moana",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "Air Tetiaroa",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    },
+    {
+      "compagnie": "St Barth Commuter",
+      "pays": "France",
+      "type": "Régionale",
+      "bagage_personnel_gratuit": "40x30x15",
+      "bagage_cabine_eco": "55x35x25, 12kg",
+      "bagage_soute_eco": "1x23kg inclus",
+      "prix_bagage_cabine": "Inclus",
+      "prix_bagage_soute": "€40-100"
+    }
+  ]
+}

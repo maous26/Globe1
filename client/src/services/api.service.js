@@ -120,7 +120,9 @@ export const adminAPI = {
   updateRoute: (id, data) => api.put(`/admin/routes/${id}`, data),
   deleteRoute: (id) => api.delete(`/admin/routes/${id}`),
   runRouteOptimization: (isFullOptimization = false) => 
-    api.post('/admin/routes/optimize', { isFullOptimization }),
+    api.post('/admin/routes/optimize', { isFullOptimization }, { timeout: 60000 }), // 60 secondes pour l'optimisation IA
+  scanRoutes: (tier = 'ultra-priority', maxCalls = 5) =>
+    api.post('/admin/routes/scan', { tier, maxCalls }),
   
   getApiStats: (startDate = '', endDate = '') => 
     api.get(`/admin/api-stats?startDate=${startDate}&endDate=${endDate}`),

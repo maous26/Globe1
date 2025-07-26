@@ -8,6 +8,9 @@ const ApiStats = require('../models/apiStats.model');
 const { optimizeRoutes } = require('../services/ai/routeOptimizationService');
 const { getTodayStats } = require('../services/analytics/statsService');
 const adminController = require('../controllers/admin.controller');
+const { importAirlinesFromJson, getBaggagePolicy } = require('../services/baggage/baggageImportService');
+const { baggageAIAgent } = require('../services/baggage/baggageAIAgent');
+const AirlineBaggage = require('../models/airlineBaggage.model');
 
 // Toutes les routes admin nécessitent l'authentification ET les droits admin
 router.use(auth, admin);
@@ -108,5 +111,249 @@ router.get('/api-stats', adminController.getApiStats);
  * @access  Private/Admin
  */
 router.get('/alerts', adminController.getAlerts);
+
+/**
+ * @route   POST /api/admin/routes/scan
+ * @desc    Trigger manual route scanning for testing
+ * @access  Private/Admin
+ */
+router.post('/routes/scan', async (req, res) => {
+  try {
+    const { tier = 'ultra-priority', maxCalls = 5 } = req.body;
+    
+    console.log(`🚀 Manual scan triggered by admin: ${tier} (max ${maxCalls} calls)`);
+    
+    // Import the monitoring function
+    const { monitorRoutesByTier } = require('../services/flight/routeMonitor');
+    
+    // Trigger monitoring
+    await monitorRoutesByTier(tier, maxCalls);
+    
+    res.json({
+      success: true,
+      message: `Manual scan completed for ${tier}`,
+      tier,
+      maxCalls
+    });
+  } catch (error) {
+    console.error('Manual scan error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur lors du scan manuel',
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/baggage-policies
+ * @desc    Get all baggage policies with pagination
+ * @access  Private/Admin
+ */
+router.get('/baggage-policies', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '', airline = '' } = req.query;
+    
+    const query = {};
+    if (search) {
+      query.$or = [
+        { airlineName: { $regex: search, $options: 'i' } },
+        { airlineCode: { $regex: search, $options: 'i' } }
+      ];
+    }
+    if (airline) {
+      query.airlineName = { $regex: airline, $options: 'i' };
+    }
+    
+    const skip = (page - 1) * limit;
+    const policies = await AirlineBaggage.find(query)
+      .sort({ lastUpdated: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    const total = await AirlineBaggage.countDocuments(query);
+    
+    res.json({
+      policies,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching baggage policies:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la récupération des politiques de bagages' 
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/baggage-policies/:airline
+ * @desc    Get specific airline baggage policy
+ * @access  Private/Admin
+ */
+router.get('/baggage-policies/:airline', async (req, res) => {
+  try {
+    const { airline } = req.params;
+    const policy = await getBaggagePolicy(airline);
+    
+    if (!policy) {
+      return res.status(404).json({
+        success: false,
+        message: 'Politique de bagages non trouvée pour cette compagnie'
+      });
+    }
+    
+    res.json({
+      success: true,
+      policy
+    });
+  } catch (error) {
+    console.error('Error fetching baggage policy:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la récupération de la politique de bagages' 
+    });
+  }
+});
+
+/**
+ * @route   POST /api/admin/baggage-policies/import
+ * @desc    Import baggage policies from JSON file
+ * @access  Private/Admin
+ */
+router.post('/baggage-policies/import', async (req, res) => {
+  try {
+    console.log('🚀 Import des politiques de bagages déclenché par admin');
+    
+    const result = await importAirlinesFromJson();
+    
+    res.json({
+      success: true,
+      message: 'Import des politiques de bagages terminé',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error importing baggage policies:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de l\'import des politiques de bagages',
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * @route   POST /api/admin/baggage-policies/ai-update
+ * @desc    Trigger AI update of outdated baggage policies
+ * @access  Private/Admin
+ */
+router.post('/baggage-policies/ai-update', async (req, res) => {
+  try {
+    console.log('🤖 Mise à jour IA des politiques de bagages déclenchée par admin');
+    
+    if (baggageAIAgent.isRunning) {
+      return res.status(409).json({
+        success: false,
+        message: 'Une mise à jour IA est déjà en cours'
+      });
+    }
+    
+    // Déclencher la mise à jour en arrière-plan
+    baggageAIAgent.triggerManualUpdate()
+      .then(result => {
+        console.log('✅ Mise à jour IA terminée:', result);
+      })
+      .catch(error => {
+        console.error('❌ Erreur mise à jour IA:', error);
+      });
+    
+    res.json({
+      success: true,
+      message: 'Mise à jour IA des politiques de bagages démarrée',
+      status: 'En cours...'
+    });
+  } catch (error) {
+    console.error('Error triggering AI update:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors du déclenchement de la mise à jour IA',
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/baggage-ai-status
+ * @desc    Get AI agent status
+ * @access  Private/Admin
+ */
+router.get('/baggage-ai-status', async (req, res) => {
+  try {
+    const status = baggageAIAgent.getStatus();
+    
+    res.json({
+      success: true,
+      status
+    });
+  } catch (error) {
+    console.error('Error getting AI status:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la récupération du statut de l\'agent IA' 
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/baggage-stats
+ * @desc    Get baggage policies statistics
+ * @access  Private/Admin
+ */
+router.get('/baggage-stats', async (req, res) => {
+  try {
+    const total = await AirlineBaggage.countDocuments();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    
+    const outdated = await AirlineBaggage.countDocuments({
+      lastUpdated: { $lt: oneMonthAgo }
+    });
+    
+    const updated = total - outdated;
+    
+    // Statistiques par source de mise à jour
+    const byUpdatedBy = await AirlineBaggage.aggregate([
+      { $group: { _id: '$updatedBy', count: { $sum: 1 } } }
+    ]);
+    
+    // Dernières mises à jour
+    const recentUpdates = await AirlineBaggage.find()
+      .sort({ lastUpdated: -1 })
+      .limit(5)
+      .select('airlineName lastUpdated updatedBy version');
+    
+    res.json({
+      success: true,
+      stats: {
+        total,
+        updated,
+        outdated,
+        updateSources: byUpdatedBy,
+        recentUpdates
+      }
+    });
+  } catch (error) {
+    console.error('Error getting baggage stats:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la récupération des statistiques' 
+    });
+  }
+});
 
 module.exports = router;
