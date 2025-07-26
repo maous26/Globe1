@@ -147,6 +147,67 @@ router.post('/routes/scan', async (req, res) => {
 });
 
 /**
+ * @route   POST /api/admin/routes/manual-scan
+ * @desc    Trigger manual route scan for testing
+ * @access  Private/Admin
+ */
+router.post('/routes/manual-scan', async (req, res) => {
+  try {
+    console.log('🔄 Scan manuel des routes déclenché par admin');
+    
+    const Route = require('../models/route.model');
+    const routes = await Route.find({ isActive: true }).limit(5); // Test avec 5 routes
+    
+    if (routes.length === 0) {
+      return res.status(400).json({ message: 'Aucune route active trouvée' });
+    }
+
+    // Déclencher le scan de manière asynchrone
+    const scanPromises = routes.map(async (route) => {
+      try {
+        // Import dynamique pour éviter les dépendances circulaires
+        const routeMonitor = require('../services/flight/routeMonitor');
+        const { scanRoute } = routeMonitor;
+        
+        if (scanRoute) {
+          console.log(`🔍 Scan de ${route.departureAirport.code}-${route.destinationAirport.code}`);
+          await scanRoute(route, { 
+            isOptimalTiming: true, 
+            hour: new Date().getHours(), 
+            dayOfWeek: new Date().getDay(),
+            manualTrigger: true 
+          });
+          return { route: `${route.departureAirport.code}-${route.destinationAirport.code}`, status: 'success' };
+        } else {
+          return { route: `${route.departureAirport.code}-${route.destinationAirport.code}`, status: 'function_not_found' };
+        }
+      } catch (error) {
+        console.error(`❌ Erreur scan ${route.departureAirport.code}-${route.destinationAirport.code}:`, error.message);
+        return { route: `${route.departureAirport.code}-${route.destinationAirport.code}`, status: 'error', error: error.message };
+      }
+    });
+
+    Promise.all(scanPromises)
+      .then((results) => {
+        console.log('✅ Scans manuels terminés:', results);
+      })
+      .catch((error) => {
+        console.error('❌ Erreur scans manuels:', error);
+      });
+    
+    res.status(200).json({ 
+      message: `Scan manuel de ${routes.length} routes déclenché`,
+      routes: routes.map(r => `${r.departureAirport.code}-${r.destinationAirport.code}`),
+      status: 'running',
+      note: 'Vérifiez les logs backend pour les résultats'
+    });
+  } catch (error) {
+    console.error('Error triggering manual route scan:', error);
+    res.status(500).json({ message: 'Erreur lors du déclenchement du scan manuel' });
+  }
+});
+
+/**
  * @route   GET /api/admin/baggage-policies
  * @desc    Get all baggage policies with pagination
  * @access  Private/Admin
@@ -354,6 +415,50 @@ router.get('/baggage-stats', async (req, res) => {
       success: false, 
       message: 'Erreur lors de la récupération des statistiques' 
     });
+  }
+});
+
+/**
+ * @route   GET /api/admin/ai-optimizer/quarterly-report
+ * @desc    Get quarterly AI route optimizer performance report
+ * @access  Private/Admin
+ */
+router.get('/ai-optimizer/quarterly-report', async (req, res) => {
+  try {
+    const report = await smartRouteOptimizerAgent.getPerformanceReport('quarterly');
+    res.status(200).json(report);
+  } catch (error) {
+    console.error('Error getting quarterly AI optimizer report:', error);
+    res.status(500).json({ message: 'Erreur lors de la récupération du rapport trimestriel IA' });
+  }
+});
+
+/**
+ * @route   POST /api/admin/ai-optimizer/manual-quarterly-analysis
+ * @desc    Trigger manual quarterly AI route analysis
+ * @access  Private/Admin
+ */
+router.post('/ai-optimizer/manual-quarterly-analysis', async (req, res) => {
+  try {
+    console.log('🔄 Analyse IA trimestrielle manuelle déclenchée par admin');
+    
+    // Déclencher l'analyse trimestrielle de manière asynchrone
+    smartRouteOptimizerAgent.performQuarterlyAnalysis()
+      .then(() => {
+        console.log('✅ Analyse IA trimestrielle manuelle terminée');
+      })
+      .catch(error => {
+        console.error('❌ Erreur analyse IA trimestrielle manuelle:', error);
+      });
+    
+    res.status(200).json({ 
+      message: 'Analyse IA trimestrielle déclenchée avec succès',
+      status: 'running',
+      note: 'Cette analyse approfondie peut prendre plusieurs minutes'
+    });
+  } catch (error) {
+    console.error('Error triggering quarterly AI analysis:', error);
+    res.status(500).json({ message: 'Erreur lors du déclenchement de l\'analyse IA trimestrielle' });
   }
 });
 

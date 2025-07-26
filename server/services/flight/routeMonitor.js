@@ -139,12 +139,15 @@ async function scanRoute(route, context = {}) {
       for (const flight of flights) {
         // Simple deal validation logic
         const avgPrice = 300; // Prix moyen de référence
-        const discountThreshold = 0.15; // 15% de réduction minimum
+        const discountThreshold = 0.30; // 30% de réduction minimum (corrigé)
         
         if (flight.price && flight.price < avgPrice * (1 - discountThreshold)) {
           const discountPercentage = Math.round(((avgPrice - flight.price) / avgPrice) * 100);
           
           console.log(`💰 Deal valide détecté: ${flight.price}€ (${discountPercentage}% de réduction)`);
+          
+          // Increment API call stats (ajouté pour traçabilité)
+          await incrementApiCallStats();
           
           // Update route deal stats
           await Route.findByIdAndUpdate(route._id, {
@@ -158,6 +161,7 @@ async function scanRoute(route, context = {}) {
             departureAirport: route.departureAirport,
             destinationAirport: route.destinationAirport,
             discountPercentage: discountPercentage,
+            discountAmount: avgPrice - flight.price,
             price: flight.price,
             originalPrice: avgPrice,
             airline: flight.airline || 'N/A',
@@ -177,7 +181,10 @@ async function scanRoute(route, context = {}) {
 
           await alert.save();
           
-          console.log(`📧 Alerte créée pour le deal ${flight.price}€`);
+          console.log(`📧 Alerte créée pour le deal ${flight.price}€ (-${discountPercentage}%)`);
+        } else if (flight.price) {
+          const discountPercentage = Math.round(((avgPrice - flight.price) / avgPrice) * 100);
+          console.log(`⏸️  Deal ignoré: ${flight.price}€ (${discountPercentage}% < 30% minimum)`);
         }
       }
     }
@@ -264,6 +271,9 @@ module.exports = {
   
   // Fonction pour scanner manuellement une tier
   scanTier: scanTierRoutes,
+  
+  // Export de la fonction scanRoute pour tests manuels
+  scanRoute: scanRoute,
   
   // Fonction pour basculer entre mode adaptatif et mode fixe
   switchToAdaptiveMode: () => {
