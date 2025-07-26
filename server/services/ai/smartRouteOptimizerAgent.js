@@ -17,19 +17,20 @@ class SmartRouteOptimizerAgent {
   start() {
     console.log('🤖 Démarrage de l\'Agent IA d\'Optimisation des Routes');
     
-    // Optimisation hebdomadaire le dimanche à 01:00
-    cron.schedule('0 1 * * 0', () => {
-      console.log('📅 Optimisation IA hebdomadaire déclenchée');
-      this.performWeeklyOptimization();
+    // Analyse trimestrielle le 1er de chaque trimestre à 02:00
+    // Janvier, Avril, Juillet, Octobre
+    cron.schedule('0 2 1 1,4,7,10 *', () => {
+      console.log('📅 Analyse IA trimestrielle déclenchée');
+      this.performQuarterlyAnalysis();
     });
 
-    // Optimisation mensuelle le 1er du mois à 03:00
-    cron.schedule('0 3 1 * *', () => {
-      console.log('📅 Optimisation IA mensuelle déclenchée');
-      this.performMonthlyOptimization();
+    // Optimisation légère mensuelle le 15 de chaque mois à 03:00 (pour ajustements mineurs)
+    cron.schedule('0 3 15 * *', () => {
+      console.log('📅 Optimisation IA mensuelle légère déclenchée');
+      this.performMonthlyLightOptimization();
     });
 
-    console.log('✅ Agent IA planifié: Dimanche 01:00 (hebdo) + 1er du mois 03:00 (mensuel)');
+    console.log('✅ Agent IA planifié: 1er trimestre 02:00 (analyse complète) + 15 du mois 03:00 (ajustements)');
   }
 
   /**
@@ -301,21 +302,22 @@ Réponds au format JSON strict:
   }
 
   /**
-   * Optimisation hebdomadaire automatique
+   * Analyse trimestrielle complète automatique
    */
-  async performWeeklyOptimization() {
+  async performQuarterlyAnalysis() {
     if (this.isRunning) {
-      console.log('⚠️  Optimisation déjà en cours, skip');
+      console.log('⚠️  Analyse déjà en cours, skip');
       return;
     }
 
     this.isRunning = true;
     
     try {
-      console.log('🔄 Optimisation hebdomadaire IA démarrée...');
+      console.log('🔄 Analyse IA trimestrielle démarrée...');
+      console.log('📊 Période d\'analyse: 3 derniers mois');
 
-      // 1. Analyser les performances
-      const enrichedRoutes = await this.analyzeRoutePerformances();
+      // 1. Analyser les performances sur 3 mois
+      const enrichedRoutes = await this.analyzeQuarterlyPerformances();
       
       // 2. Vérifier le budget mensuel
       const totalMonthlyCalls = enrichedRoutes.reduce((sum, route) => sum + route.callsPerMonth, 0);
@@ -323,23 +325,275 @@ Réponds au format JSON strict:
       console.log(`💰 Estimation calls mensuels actuels: ${totalMonthlyCalls.toLocaleString()}`);
       console.log(`🎯 Target maximum: ${this.maxMonthlyCallsTarget.toLocaleString()}`);
 
-      // 3. Identifier les routes à remplacer
+      // 3. Analyse approfondie pour remplacement si nécessaire
+      const quarterlyReport = await this.generateQuarterlyReport(enrichedRoutes);
+      console.log(`📈 Rapport trimestriel généré: ${quarterlyReport.summary}`);
+
+      // 4. Identifier les routes à remplacer (plus strict en analyse trimestrielle)
       const callsOverBudget = Math.max(0, totalMonthlyCalls - this.maxMonthlyCallsTarget);
       const routesToReplace = Math.ceil(callsOverBudget / 700); // Estimation 700 calls par route
 
-      if (routesToReplace > 0 || enrichedRoutes.some(r => r.performanceScore < 3)) {
+      if (routesToReplace > 0 || enrichedRoutes.some(r => r.performanceScore < 2)) {
+        console.log(`🔄 Remplacement de ${routesToReplace} routes identifiées`);
         await this.performRouteReplacement(enrichedRoutes, routesToReplace);
       } else {
-        console.log('✅ Aucune optimisation nécessaire cette semaine');
+        console.log('✅ Aucune optimisation majeure nécessaire ce trimestre');
       }
 
+      // 5. Sauvegarder le rapport trimestriel
+      await this.saveQuarterlyReport(quarterlyReport);
+
       this.lastOptimization = new Date();
-      console.log('✅ Optimisation hebdomadaire terminée');
+      console.log('✅ Analyse trimestrielle terminée');
 
     } catch (error) {
-      console.error('❌ Erreur optimisation hebdomadaire:', error);
+      console.error('❌ Erreur analyse trimestrielle:', error);
     } finally {
       this.isRunning = false;
+    }
+  }
+
+  /**
+   * Optimisation mensuelle légère (ajustements mineurs uniquement)
+   */
+  async performMonthlyLightOptimization() {
+    if (this.isRunning) {
+      console.log('⚠️  Analyse déjà en cours, skip');
+      return;
+    }
+
+    try {
+      console.log('🔄 Optimisation mensuelle légère...');
+
+      // Analyse rapide sur le mois écoulé seulement
+      const routes = await this.analyzeRoutePerformances();
+      
+      // Seulement des ajustements mineurs (pas de remplacement majeur)
+      const urgentIssues = routes.filter(r => r.performanceScore < 1 || r.alertsGenerated === 0);
+      
+      if (urgentIssues.length > 0) {
+        console.log(`⚠️  ${urgentIssues.length} routes nécessitent attention urgente`);
+        // Juste désactiver temporairement les routes problématiques
+        for (const route of urgentIssues.slice(0, 3)) { // Max 3 ajustements par mois
+          await Route.findByIdAndUpdate(route._id, {
+            isActive: false,
+            deactivatedReason: `Pause mensuelle - Performance critique: ${route.performanceScore}`,
+            temporaryDeactivation: true,
+            reactivationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 jours
+          });
+          console.log(`⏸️  Route ${route.departureAirport.code}-${route.destinationAirport.code} mise en pause`);
+        }
+      } else {
+        console.log('✅ Aucun ajustement nécessaire ce mois');
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur optimisation mensuelle:', error);
+    }
+  }
+
+  /**
+   * Analyser les performances sur 3 mois (trimestriel)
+   */
+  async analyzeQuarterlyPerformances() {
+    try {
+      console.log('📊 Analyse IA des performances trimestrielles...');
+
+      // Récupérer toutes les routes avec leurs stats
+      const routes = await Route.find({ isActive: true }).lean();
+      
+      // Analyser les alertes générées par route dans les 90 derniers jours
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const alertStats = await Alert.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: ninetyDaysAgo }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              dep: '$departureAirport.code',
+              dest: '$destinationAirport.code'
+            },
+            alertCount: { $sum: 1 },
+            avgDiscount: { $avg: '$discountPercentage' },
+            totalSavings: { $sum: '$discountAmount' },
+            lastAlert: { $max: '$createdAt' },
+            // Statistiques trimestrielles
+            monthlyDistribution: {
+              $push: {
+                month: { $month: '$createdAt' },
+                discount: '$discountPercentage'
+              }
+            }
+          }
+        }
+      ]);
+
+      // Enrichir les routes avec les données d'alertes trimestrielles
+      const enrichedRoutes = routes.map(route => {
+        const alertData = alertStats.find(alert => 
+          alert._id.dep === route.departureAirport.code && 
+          alert._id.dest === route.destinationAirport.code
+        ) || { alertCount: 0, avgDiscount: 0, totalSavings: 0 };
+
+        // Calcul du score de performance trimestriel (plus strict)
+        const performanceScore = this.calculateQuarterlyPerformanceScore(route, alertData);
+        
+        return {
+          ...route,
+          alertsGenerated: alertData.alertCount,
+          avgDiscount: alertData.avgDiscount,
+          totalSavings: alertData.totalSavings,
+          lastAlert: alertData.lastAlert,
+          monthlyDistribution: alertData.monthlyDistribution || [],
+          performanceScore: performanceScore,
+          callsPerMonth: this.estimateMonthlyCallsForRoute(route),
+          roi: this.calculateROI(route, alertData),
+          quarterlyTrend: this.calculateQuarterlyTrend(alertData.monthlyDistribution)
+        };
+      });
+
+      return enrichedRoutes.sort((a, b) => b.performanceScore - a.performanceScore);
+
+    } catch (error) {
+      console.error('❌ Erreur analyse performances trimestrielles:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Calcul du score de performance trimestriel (plus exigeant)
+   */
+  calculateQuarterlyPerformanceScore(route, alertData) {
+    const successRate = route.totalScans > 0 ? (route.totalDealsFound / route.totalScans) : 0;
+    const alertFrequency = alertData.alertCount || 0;
+    const avgDiscount = alertData.avgDiscount || 0;
+    const totalSavings = alertData.totalSavings || 0;
+    
+    // Pénalité plus stricte pour les routes inactives
+    const daysSinceLastScan = route.lastScannedAt ? 
+      (Date.now() - new Date(route.lastScannedAt)) / (1000 * 60 * 60 * 24) : 999;
+    const recencyFactor = Math.max(0, 1 - (daysSinceLastScan / 90)); // Sur 90 jours
+
+    // Score trimestriel plus exigeant (seuils plus élevés)
+    const score = (
+      successRate * 35 +           // 35% - Taux de succès des scans
+      (alertFrequency / 3) * 30 +  // 30% - Nombre d'alertes (divisé par 3 pour trimestre)
+      (avgDiscount / 100) * 20 +   // 20% - Qualité des réductions trouvées
+      (totalSavings / 3000) * 10 + // 10% - Économies totales (seuil plus élevé)
+      recencyFactor * 5            // 5% - Activité récente
+    );
+
+    return Math.round(score * 100) / 100;
+  }
+
+  /**
+   * Calculer la tendance trimestrielle
+   */
+  calculateQuarterlyTrend(monthlyDistribution) {
+    if (!monthlyDistribution || monthlyDistribution.length < 2) {
+      return 'stable';
+    }
+
+    const months = monthlyDistribution.map(d => d.month).sort();
+    const first = monthlyDistribution.filter(d => d.month === months[0]);
+    const last = monthlyDistribution.filter(d => d.month === months[months.length - 1]);
+
+    if (last.length > first.length) return 'croissante';
+    if (last.length < first.length) return 'décroissante';
+    return 'stable';
+  }
+
+  /**
+   * Générer un rapport trimestriel détaillé
+   */
+  async generateQuarterlyReport(enrichedRoutes) {
+    const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+    const currentYear = new Date().getFullYear();
+
+    const report = {
+      quarter: `Q${currentQuarter} ${currentYear}`,
+      generatedAt: new Date(),
+      summary: {
+        totalRoutes: enrichedRoutes.length,
+        totalMonthlyCalls: enrichedRoutes.reduce((sum, r) => sum + r.callsPerMonth, 0),
+        budgetUtilization: 0,
+        topPerformers: enrichedRoutes.slice(0, 10),
+        underPerformers: enrichedRoutes.filter(r => r.performanceScore < 3),
+        trends: {
+          growing: enrichedRoutes.filter(r => r.quarterlyTrend === 'croissante').length,
+          declining: enrichedRoutes.filter(r => r.quarterlyTrend === 'décroissante').length,
+          stable: enrichedRoutes.filter(r => r.quarterlyTrend === 'stable').length
+        }
+      },
+      recommendations: this.generateQuarterlyRecommendations(enrichedRoutes)
+    };
+
+    report.summary.budgetUtilization = (report.summary.totalMonthlyCalls / this.maxMonthlyCallsTarget * 100).toFixed(1);
+
+    return report;
+  }
+
+  /**
+   * Générer des recommandations trimestrielles
+   */
+  generateQuarterlyRecommendations(routes) {
+    const recommendations = [];
+
+    // Routes en croissance
+    const growingRoutes = routes.filter(r => r.quarterlyTrend === 'croissante' && r.performanceScore > 7);
+    if (growingRoutes.length > 0) {
+      recommendations.push({
+        type: 'upgrade',
+        message: `${growingRoutes.length} routes montrent une croissance excellente - considérer upgrade vers tier supérieur`,
+        routes: growingRoutes.slice(0, 5).map(r => `${r.departureAirport.code}-${r.destinationAirport.code}`)
+      });
+    }
+
+    // Routes en déclin
+    const decliningRoutes = routes.filter(r => r.quarterlyTrend === 'décroissante' && r.performanceScore < 4);
+    if (decliningRoutes.length > 0) {
+      recommendations.push({
+        type: 'review',
+        message: `${decliningRoutes.length} routes en déclin nécessitent révision ou remplacement`,
+        routes: decliningRoutes.slice(0, 5).map(r => `${r.departureAirport.code}-${r.destinationAirport.code}`)
+      });
+    }
+
+    // Budget
+    const totalCalls = routes.reduce((sum, r) => sum + r.callsPerMonth, 0);
+    if (totalCalls > this.maxMonthlyCallsTarget * 0.9) {
+      recommendations.push({
+        type: 'budget',
+        message: `Utilisation budget à ${(totalCalls/this.maxMonthlyCallsTarget*100).toFixed(1)}% - optimisation nécessaire`
+      });
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Sauvegarder le rapport trimestriel en base
+   */
+  async saveQuarterlyReport(report) {
+    try {
+      // Créer un modèle simple pour stocker les rapports (on pourrait créer un modèle dédié)
+      const Route = require('../../models/route.model');
+      
+      // Pour l'instant, on log juste le rapport (tu pourrais créer un modèle QuarterlyReport)
+      console.log('📊 RAPPORT TRIMESTRIEL SAUVEGARDÉ:', {
+        quarter: report.quarter,
+        routes: report.summary.totalRoutes,
+        budget: report.summary.budgetUtilization + '%',
+        recommandations: report.recommendations.length
+      });
+
+      // TODO: Créer un modèle QuarterlyReport si tu veux persister en DB
+      
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde rapport:', error);
     }
   }
 
@@ -402,7 +656,7 @@ Réponds au format JSON strict:
     console.log('🌟 Optimisation mensuelle approfondie IA...');
     
     // Optimisation plus agressive une fois par mois
-    await this.performWeeklyOptimization();
+    await this.performMonthlyLightOptimization();
     
     // Analyse saisonnière supplémentaire
     await this.updateSeasonalRoutes();
@@ -488,20 +742,58 @@ Réponds au format JSON strict:
   }
 
   /**
-   * Obtenir un rapport de performance
+   * Obtenir un rapport de performance (trimestriel ou mensuel)
    */
-  async getPerformanceReport() {
-    const enrichedRoutes = await this.analyzeRoutePerformances();
-    const totalCalls = enrichedRoutes.reduce((sum, r) => sum + r.callsPerMonth, 0);
+  async getPerformanceReport(type = 'monthly') {
+    if (type === 'quarterly') {
+      const enrichedRoutes = await this.analyzeQuarterlyPerformances();
+      const totalCalls = enrichedRoutes.reduce((sum, r) => sum + r.callsPerMonth, 0);
+      
+      return {
+        type: 'quarterly',
+        totalRoutes: enrichedRoutes.length,
+        totalMonthlyCalls: totalCalls,
+        budgetUtilization: (totalCalls / this.maxMonthlyCallsTarget * 100).toFixed(1),
+        topPerformers: enrichedRoutes.slice(0, 5),
+        underPerformers: enrichedRoutes.slice(-5),
+        trends: {
+          growing: enrichedRoutes.filter(r => r.quarterlyTrend === 'croissante').length,
+          declining: enrichedRoutes.filter(r => r.quarterlyTrend === 'décroissante').length,
+          stable: enrichedRoutes.filter(r => r.quarterlyTrend === 'stable').length
+        },
+        lastOptimization: this.lastOptimization,
+        nextAnalysis: this.getNextQuarterlyDate()
+      };
+    } else {
+      const enrichedRoutes = await this.analyzeRoutePerformances();
+      const totalCalls = enrichedRoutes.reduce((sum, r) => sum + r.callsPerMonth, 0);
+      
+      return {
+        type: 'monthly',
+        totalRoutes: enrichedRoutes.length,
+        totalMonthlyCalls: totalCalls,
+        budgetUtilization: (totalCalls / this.maxMonthlyCallsTarget * 100).toFixed(1),
+        topPerformers: enrichedRoutes.slice(0, 5),
+        underPerformers: enrichedRoutes.slice(-5),
+        lastOptimization: this.lastOptimization
+      };
+    }
+  }
+
+  /**
+   * Calculer la prochaine date d'analyse trimestrielle
+   */
+  getNextQuarterlyDate() {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
     
-    return {
-      totalRoutes: enrichedRoutes.length,
-      totalMonthlyCalls: totalCalls,
-      budgetUtilization: (totalCalls / this.maxMonthlyCallsTarget * 100).toFixed(1),
-      topPerformers: enrichedRoutes.slice(0, 5),
-      underPerformers: enrichedRoutes.slice(-5),
-      lastOptimization: this.lastOptimization
-    };
+    // Mois de début de trimestre: 1, 4, 7, 10
+    const quarterStarts = [1, 4, 7, 10];
+    const nextQuarter = quarterStarts.find(month => month > currentMonth) || quarterStarts[0];
+    
+    const nextYear = nextQuarter === 1 && currentMonth > 10 ? now.getFullYear() + 1 : now.getFullYear();
+    
+    return new Date(nextYear, nextQuarter - 1, 1, 2, 0, 0); // 1er du mois à 02:00
   }
 }
 

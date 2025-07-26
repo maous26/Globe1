@@ -51,10 +51,21 @@ async function testManualScan() {
       await incrementApiCallStats();
       console.log('   ✅ Stats API incrémentées');
       
-      // Créer l'alerte
+      // Créer l'alerte avec un user valide
+      const User = require('../models/user.model');
+      let testUser = await User.findOne();
+      if (!testUser) {
+        testUser = new User({
+          name: 'Test User',
+          email: 'test@globegenius.app',
+          password: 'test123',
+          tier: 'free'
+        });
+        await testUser.save();
+      }
+
       const alert = new Alert({
-        user: testRoute.userId || null,
-        routeId: testRoute._id,
+        user: testUser._id,
         departureAirport: testRoute.departureAirport,
         destinationAirport: testRoute.destinationAirport,
         discountPercentage: discountPercentage,
@@ -65,15 +76,10 @@ async function testManualScan() {
         farePolicy: 'Economy',
         stops: 0,
         outboundDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Dans 14 jours
-        returnDate: null,
-        duration: 480, // 8h
-        bookingUrl: 'https://test.booking.com',
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
-        timingContext: {
-          detectedAt: new Date(),
-          scanPeriod: 'TEST MANUEL',
-          isOptimalTiming: true
-        }
+        returnDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000), // Required - 21 jours
+        duration: 8, // 8h en heures (pas minutes)
+        bookingLink: 'https://test.booking.com',
+        expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
       });
 
       await alert.save();

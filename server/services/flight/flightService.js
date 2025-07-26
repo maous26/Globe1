@@ -1,6 +1,6 @@
 // server/services/flight/flightService.js
 const axios = require('axios');
-const { statsService } = require('../analytics/statsService');
+const { incrementApiCallStats } = require('../analytics/statsService');
 const cacheService = require('../cache/cacheService');
 
 // Configuration API
@@ -49,7 +49,7 @@ async function makeFlightLabsRequest(endpoint, params = {}) {
     console.log('✅ Data count:', Array.isArray(response.data?.data) ? response.data.data.length : 'N/A');
     
     // Track API usage
-    await statsService.incrementApiCallStats('flightlabs', endpoint);
+    await incrementApiCallStats('flightlabs', endpoint);
     
     return response.data;
   } catch (error) {
@@ -62,7 +62,7 @@ async function makeFlightLabsRequest(endpoint, params = {}) {
     });
     
     // Track failed API calls
-    await statsService.incrementApiCallStats('flightlabs', endpoint, false);
+    await incrementApiCallStats('flightlabs', endpoint, false);
     throw error;
   }
 }

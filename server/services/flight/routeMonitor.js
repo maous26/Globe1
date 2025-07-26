@@ -157,7 +157,6 @@ async function scanRoute(route, context = {}) {
           // Create alert
           const alert = new Alert({
             user: route.userId,
-            routeId: route._id,
             departureAirport: route.departureAirport,
             destinationAirport: route.destinationAirport,
             discountPercentage: discountPercentage,
@@ -168,15 +167,10 @@ async function scanRoute(route, context = {}) {
             farePolicy: flight.fare_type || 'Standard',
             stops: flight.stops || 0,
             outboundDate: new Date(flight.departure_time || departureDate),
-            returnDate: flight.return_time ? new Date(flight.return_time) : null,
-            duration: flight.duration || 120,
-            bookingUrl: flight.booking_url || '#',
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h expiry
-            timingContext: {
-              detectedAt: new Date(),
-              scanPeriod: getTimingPeriodName(context.hour, context.dayOfWeek),
-              isOptimalTiming: context.isOptimalTiming
-            }
+            returnDate: new Date(flight.return_time || departureDate), // Required field
+            duration: Math.round((flight.duration || 120) / 60), // Convert to hours
+            bookingLink: flight.booking_url || '#',
+            expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h expiry
           });
 
           await alert.save();

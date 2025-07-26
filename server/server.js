@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
-const { scheduleRouteMonitoring } = require('./services/flight/routeMonitor');
+const routeMonitor = require('./services/flight/routeMonitor');
 const cacheService = require('./services/cache/cacheService');
 
 // Load environment variables
@@ -93,7 +93,7 @@ app.listen(PORT, async () => {
   // Start route monitoring after server is ready
   try {
     console.log('🔄 Initializing route monitoring...');
-    await startRouteMonitoring();
+    routeMonitor.start();
     console.log('✅ Route monitoring initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize route monitoring:', error);
@@ -113,8 +113,9 @@ app.listen(PORT, async () => {
     console.log('🧠 Initializing Smart Route Optimizer AI Agent...');
     smartRouteOptimizerAgent.start();
     console.log('🎯 Smart Route Optimizer AI ready');
-    console.log('📅 Optimisation automatique: Dimanche 01:00 (hebdo) + 1er du mois 03:00 (mensuel)');
-    console.log('🔄 Remplacement automatique des routes sous-performantes');
+    console.log('📅 Analyse trimestrielle automatique: 1er trimestre 02:00 (Jan/Avr/Jul/Oct)');
+    console.log('🔧 Ajustements mensuels: 15 du mois 03:00 (optimisations légères)');
+    console.log('🔄 Remplacement automatique des routes sous-performantes (trimestriel)');
     console.log('💰 Respect strict du budget 30K calls/mois');
   } catch (error) {
     console.error('❌ Failed to initialize Smart Route Optimizer AI:', error);
