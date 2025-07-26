@@ -62,6 +62,7 @@ const alertRoutes = require('./routes/alert.routes');
 const adminRoutes = require('./routes/admin.routes');
 const flightRoutes = require('./routes/flight.routes');
 const healthRoutes = require('./routes/health.routes');
+const feedbackRoutes = require('./routes/feedback.routes');
 
 // Services
 const { startRouteMonitoring } = require('./services/flight/routeMonitor');
@@ -74,6 +75,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/flights', flightRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

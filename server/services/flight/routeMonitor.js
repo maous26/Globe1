@@ -150,15 +150,15 @@ async function scanRoute(route, context = {}) {
           await incrementApiCallStats();
           
           // Update route deal stats
-          await Route.findByIdAndUpdate(route._id, {
-            $inc: { totalDealsFound: 1 }
-          });
+        await Route.findByIdAndUpdate(route._id, {
+          $inc: { totalDealsFound: 1 }
+        });
 
           // Create alert
-          const alert = new Alert({
+      const alert = new Alert({
             user: route.userId,
-            departureAirport: route.departureAirport,
-            destinationAirport: route.destinationAirport,
+        departureAirport: route.departureAirport,
+        destinationAirport: route.destinationAirport,
             discountPercentage: discountPercentage,
             discountAmount: avgPrice - flight.price,
             price: flight.price,
@@ -171,10 +171,10 @@ async function scanRoute(route, context = {}) {
             duration: Math.round((flight.duration || 120) / 60), // Convert to hours
             bookingLink: flight.booking_url || '#',
             expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h expiry
-          });
+      });
 
-          await alert.save();
-          
+      await alert.save();
+      
           console.log(`📧 Alerte créée pour le deal ${flight.price}€ (-${discountPercentage}%)`);
         } else if (flight.price) {
           const discountPercentage = Math.round(((avgPrice - flight.price) / avgPrice) * 100);
@@ -185,7 +185,7 @@ async function scanRoute(route, context = {}) {
 
     const duration = Date.now() - startTime;
     console.log(`✅ Scan terminé en ${duration}ms`);
-
+    
   } catch (error) {
     console.error(`❌ Erreur lors du scan de ${route.departureAirport.code}-${route.destinationAirport.code}:`, error.message);
     
