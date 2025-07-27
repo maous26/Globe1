@@ -60,6 +60,11 @@ exports.incrementApiCallStats = async (type, target, success = true) => {
         const destinationCount = stats.callsByAirport.get(destinationAirport) || 0;
         stats.callsByAirport.set(destinationAirport, destinationCount + 1);
       }
+    } else if (type === 'flightlabs' && target) {
+      // Gérer les appels FlightLabs (nouveau type ajouté)
+      console.log(`📊 Tracking FlightLabs API call: ${target} (${success ? 'SUCCESS' : 'FAILED'})`);
+      // Pour FlightLabs, on peut optionnellement tracker par endpoint
+      // mais on a déjà les compteurs totaux ci-dessus
     } else if (type === 'alternativeDates' && target) {
       // Same format as flight search
       const routeCount = stats.callsByRoute.get(target) || 0;

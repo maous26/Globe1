@@ -62,10 +62,9 @@ const alertRoutes = require('./routes/alert.routes');
 const adminRoutes = require('./routes/admin.routes');
 const flightRoutes = require('./routes/flight.routes');
 const healthRoutes = require('./routes/health.routes');
-const feedbackRoutes = require('./routes/feedback.routes');
+// const feedbackRoutes = require('./routes/feedback.routes'); // Removed with ML refactor
 
 // Services
-const { startRouteMonitoring } = require('./services/flight/routeMonitor');
 const { baggageAIAgent } = require('./services/baggage/baggageAIAgent');
 const smartRouteOptimizerAgent = require('./services/ai/smartRouteOptimizerAgent');
 
@@ -75,7 +74,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/flights', flightRoutes);
 app.use('/api/health', healthRoutes);
-app.use('/api/feedback', feedbackRoutes);
+// app.use('/api/feedback', feedbackRoutes); // Removed with ML refactor
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

@@ -169,17 +169,17 @@ const RouteManagement = () => {
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Rapport IA Trimestriel
               </button>
-              <button 
+            <button 
                 onClick={fetchRoutes}
                 className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              >
+            >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Actualiser
-              </button>
+            </button>
             </div>
           </div>
-        </div>
-
+          </div>
+          
         {/* Quarterly AI Report Section */}
         {showQuarterlyReport && (
           <div className="mb-8 bg-white rounded-lg shadow p-6">
@@ -211,7 +211,7 @@ const RouteManagement = () => {
                 </button>
               </div>
             </div>
-
+            
             {reportLoading ? (
               <div className="text-center py-8">
                 <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
@@ -230,7 +230,7 @@ const RouteManagement = () => {
                       {quarterlyReport.analysisStartDate ? new Date(quarterlyReport.analysisStartDate).toLocaleDateString('fr-FR') : 'N/A'} - 
                       {quarterlyReport.analysisEndDate ? new Date(quarterlyReport.analysisEndDate).toLocaleDateString('fr-FR') : 'N/A'}
                     </p>
-                  </div>
+                    </div>
                   <div className="bg-green-50 p-4 rounded-lg">
                     <div className="flex items-center">
                       <TrendingUp className="h-5 w-5 text-green-600 mr-2" />
@@ -264,9 +264,9 @@ const RouteManagement = () => {
                           <span className="w-2 h-2 bg-yellow-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
                           {recommendation}
                         </li>
-                      ))}
+                ))}
                     </ul>
-                  </div>
+              </div>
                 )}
 
                 {/* Report Summary */}
@@ -274,7 +274,7 @@ const RouteManagement = () => {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-semibold text-gray-800 mb-3">Résumé de l'Analyse</h3>
                     <p className="text-gray-700 leading-relaxed">{quarterlyReport.summary}</p>
-                  </div>
+            </div>
                 )}
 
                 {/* Next Analysis Date */}
@@ -291,12 +291,12 @@ const RouteManagement = () => {
                 <p className="text-sm text-gray-500 mt-2">
                   Déclenchez une analyse manuelle pour générer le premier rapport
                 </p>
-              </div>
+            </div>
             )}
           </div>
         )}
 
-        {/* Search and Filters */}
+          {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -310,57 +310,57 @@ const RouteManagement = () => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-            </div>
-            <button
-              onClick={handleSearch}
+              </div>
+                <button
+                  onClick={handleSearch}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Rechercher
-            </button>
-          </div>
-        </div>
+                >
+                  Rechercher
+                </button>
+              </div>
+            </div>
 
-        {/* Routes Table */}
+          {/* Routes Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Route
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Statut
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Performance
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Route
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tier
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Statut
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Performance
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
                 {routes.map((route) => (
-                  <tr key={route._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
+                      <tr key={route._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                             <Plane className="h-5 w-5 text-blue-600" />
-                          </div>
-                        </div>
+                            </div>
+                              </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
                             {route.departureAirport?.code || 'N/A'} → {route.destinationAirport?.code || 'N/A'}
-                          </div>
+                              </div>
                           <div className="text-sm text-gray-500">
                             {route.departureAirport?.name || 'N/A'} → {route.destinationAirport?.name || 'N/A'}
+                                </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         route.tier === 'ultra-priority' ? 'bg-red-100 text-red-800' :
                         route.tier === 'high-priority' ? 'bg-orange-100 text-orange-800' :
@@ -368,24 +368,24 @@ const RouteManagement = () => {
                         'bg-gray-100 text-gray-800'
                       }`}>
                         {route.tier || 'standard'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                            </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         route.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}>
                         {route.isActive ? 'Actif' : 'Inactif'}
-                      </span>
-                    </td>
+                              </span>
+                        </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {route.totalScans > 0 
-                        ? Math.round((route.totalDealsFound || 0) / route.totalScans * 100)
-                        : 0}% de succès
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                              {route.totalScans > 0 
+                                ? Math.round((route.totalDealsFound || 0) / route.totalScans * 100)
+                                : 0}% de succès
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
           </div>
 
           {/* Pagination */}

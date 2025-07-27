@@ -13,18 +13,8 @@ exports.validateDeal = async (deal, routeContext = {}) => {
   try {
     console.log(`🔍 Validation deal: ${deal.airline} ${deal.departureAirport?.code}→${deal.destinationAirport?.code} - ${deal.price}€`);
     
-    // 1. ANALYSE DE FIABILITÉ AUTOMATIQUE (nouveau système ML)
-    const reliabilityAnalysis = await dealReliabilityEngine.analyzeDeal({
-      departureCode: deal.departureAirport?.code,
-      destinationCode: deal.destinationAirport?.code,
-      airline: deal.airline,
-      price: deal.price,
-      discountPercentage: deal.discountPercentage,
-      seatsAvailable: deal.seatsAvailable
-    }, {
-      routeId: routeContext.routeId,
-      averagePrice: routeContext.averagePrice
-    });
+    // 1. VALIDATION IA PRIORITAIRE (ML pas encore assez de données)
+    console.log(`🤖 Validation IA prioritaire - ML en apprentissage passif`);
     
     // 2. VALIDATION TRADITIONNELLE AVEC POLITIQUE BAGAGES
     const baggagePolicy = await getBaggagePolicy(deal.airline);
@@ -38,59 +28,84 @@ DEAL:
 - Prix: ${deal.price || 0}€ (Réduction: ${deal.discountPercentage || 0}%)
 - Date: ${deal.departureDate || 'Unknown'}
 
-ANALYSE DE FIABILITÉ ML:
-- Score fiabilité: ${reliabilityAnalysis.reliabilityScore}%
-- Légitimité: ${reliabilityAnalysis.isReliable ? 'FIABLE' : 'SUSPECT'}
-- Confiance IA: ${reliabilityAnalysis.confidence}%
-- Warnings: ${reliabilityAnalysis.warnings.join(', ') || 'Aucun'}
+STRATÉGIE DE VALIDATION:
+- Mode: IA PRIORITAIRE (ML insuffisamment entraîné)
+- ML Status: Collecte de données en cours
+- IA prend toutes les décisions de validation
+- Données envoyées au ML pour apprentissage passif
 
 POLITIQUE BAGAGES:
 ${baggagePolicy ? JSON.stringify(baggagePolicy, null, 2) : 'Non disponible'}
 
-VALIDATION FINALE:
-Le système ML a déjà analysé les patterns, timing, historique compagnie et facteurs suspects.
-Valide maintenant les aspects pratiques et utilisateur.
+VALIDATION FINALE REQUISE:
+En tant qu'expert IA, vous devez analyser ce deal COMPLÈTEMENT car le ML n'a pas encore assez de données.
 
-RETOURNE ce JSON:
+Analysez:
+1. Cohérence prix/distance (deal trop beau = suspect)
+2. Fiabilité compagnie aérienne
+3. Timing de l'offre (jour/heure optimal?)
+4. Politique bagages (frais cachés?)
+5. Disponibilité sièges vs prix
+6. Patterns suspects (erreur de prix?)
+
+RETOURNE ce JSON avec ANALYSE COMPLÈTE:
 {
   "isValid": true/false,
   "confidence": 0-100,
-  "reasoning": "Décision basée sur analyse ML + validation pratique",
+  "reasoning": "Analyse IA complète - pourquoi accepter/rejeter",
   "valueRating": 1-10,
-  "warnings": ["alertes pour utilisateur"],
+  "warnings": ["alertes importantes pour utilisateur"],
   "aiScore": 0-100,
-  "recommendation": "ACCEPT" | "REJECT" | "REVIEW"
+  "recommendation": "ACCEPT" | "REJECT" | "REVIEW",
+  "suspiciousFactors": ["facteurs suspects détectés"],
+  "priceAnalysis": "Analyse du prix vs marché"
 }
 `;
 
-    // 3. APPEL IA POUR VALIDATION FINALE
+    // 3. APPEL IA POUR VALIDATION PRIORITAIRE
     const validationResult = await routeAIRequest('deal-validation', validationPrompt, {
       dealData: JSON.stringify(deal),
-      reliabilityAnalysis: JSON.stringify(reliabilityAnalysis),
       baggagePolicy: baggagePolicy ? JSON.stringify(baggagePolicy) : 'None'
     });
 
-    // 4. COMBINER RÉSULTATS ML + IA
-    const finalScore = Math.round((reliabilityAnalysis.reliabilityScore + (validationResult.confidence || 50)) / 2);
-    const isAccepted = reliabilityAnalysis.isReliable && 
-                      (validationResult.isValid !== false) && 
-                      finalScore >= 65;
+    // 4. IA PREND LA DÉCISION FINALE (ML en apprentissage passif)
+    const aiScore = validationResult.confidence || 50;
+    const isAccepted = (validationResult.isValid !== false) && aiScore >= 70; // Seuil IA : 70%
 
-    console.log(`${isAccepted ? '✅' : '❌'} Deal ${isAccepted ? 'ACCEPTÉ' : 'REJETÉ'} - Score final: ${finalScore}% (ML: ${reliabilityAnalysis.reliabilityScore}%, IA: ${validationResult.confidence || 50}%)`);
+    console.log(`${isAccepted ? '✅' : '❌'} Deal ${isAccepted ? 'ACCEPTÉ' : 'REJETÉ'} par IA - Score: ${aiScore}% (Seuil: 70%)`);
+    
+    // 5. APPRENTISSAGE ML PASSIF (collecte données pour futur)
+    try {
+      const reliabilityAnalysis = await dealReliabilityEngine.analyzeDeal({
+        departureCode: deal.departureAirport?.code,
+        destinationCode: deal.destinationAirport?.code,
+        airline: deal.airline,
+        price: deal.price,
+        discountPercentage: deal.discountPercentage,
+        seatsAvailable: deal.seatsAvailable
+      }, {
+        routeId: routeContext.routeId,
+        averagePrice: routeContext.averagePrice,
+        aiDecision: isAccepted,
+        aiScore: aiScore
+      });
+      console.log(`📚 Données ML collectées pour apprentissage (Score ML actuel: ${reliabilityAnalysis.reliabilityScore}%)`);
+    } catch (mlError) {
+      console.log(`⚠️ ML apprentissage passif échoué: ${mlError.message}`);
+    }
 
     return {
       isValid: isAccepted,
-      confidence: finalScore,
-      aiScore: finalScore,
-      reasoning: `ML: ${reliabilityAnalysis.reasoning}. Validation: ${validationResult.reasoning || 'Standard check passed'}`,
+      confidence: aiScore,
+      aiScore: aiScore,
+      reasoning: `IA PRIORITAIRE: ${validationResult.reasoning || 'Analyse IA standard'}`,
       warnings: [
-        ...reliabilityAnalysis.warnings,
         ...(validationResult.warnings || [])
       ],
-      valueRating: validationResult.valueRating || Math.round(finalScore / 10),
-      reliabilityAnalysis, // Données ML complètes
-      analyticsId: reliabilityAnalysis.analyticsId, // Pour feedback futur
-      mlEnhanced: true,
+      valueRating: validationResult.valueRating || Math.round(aiScore / 10),
+      suspiciousFactors: validationResult.suspiciousFactors || [],
+      priceAnalysis: validationResult.priceAnalysis || '',
+      mode: 'AI_PRIORITY_ML_LEARNING',
       recommendation: validationResult.recommendation || (isAccepted ? 'ACCEPT' : 'REJECT')
     };
     

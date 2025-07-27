@@ -27,16 +27,19 @@ const ApiStats = () => {
     fetchApiStats();
   }, [dateRange]);
 
-  // Auto-refresh every 30 seconds - VRAIES DONNÉES EN TEMPS RÉEL
+  // Auto-refresh every 30 seconds - VRAIES DONNÉES EN TEMPS RÉEL - DÉSACTIVÉ TEMPORAIREMENT
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!loading) {
-        console.log('🔄 Auto-refresh API stats (REAL DATA)...');
-        fetchApiStats();
-      }
-    }, 30000);
+    // DÉSACTIVÉ : causait des appels API en boucle
+    // const interval = setInterval(() => {
+    //   if (!loading) {
+    //     console.log('🔄 Auto-refresh API stats (REAL DATA)...');
+    //     fetchApiStats();
+    //   }
+    // }, 30000);
     
-    return () => clearInterval(interval);
+    // return () => clearInterval(interval);
+    
+    console.log('ℹ️ Auto-refresh désactivé pour éviter les appels répétés');
   }, [loading]);
 
   const fetchApiStats = useCallback(async () => {
