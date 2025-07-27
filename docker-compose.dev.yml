@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  globegenius-backend-dev:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: globegenius-backend-dev
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://globegenius-mongo-dev:27017/globegenius_dev
+      - REDIS_URL=redis://globegenius-redis-dev:6379
+      - JWT_SECRET=${JWT_SECRET_DEV}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - FLIGHT_API_BASE_URL=${FLIGHT_API_BASE_URL}
+      - FLIGHT_API_KEY=${FLIGHT_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - FRONTEND_URL=https://dev.globegenius.com
+    ports:
+      - "3101:3001"
+    depends_on:
+      - globegenius-mongo-dev
+      - globegenius-redis-dev
+    volumes:
+      - ./server/uploads:/app/uploads
+      - ./server/logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - globegenius-network-dev
+
+  globegenius-frontend-dev:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: globegenius-frontend-dev
+    ports:
+      - "3100:80"
+    environment:
+      - REACT_APP_API_URL=https://dev-api.globegenius.com
+      - REACT_APP_ENV=development
+    restart: unless-stopped
+    networks:
+      - globegenius-network-dev
+
+  globegenius-mongo-dev:
+    image: mongo:7.0
+    container_name: globegenius-mongodb-dev
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=globegenius_dev
+    ports:
+      - "27019:27017"
+    volumes:
+      - globegenius-mongo-data-dev:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    restart: unless-stopped
+    networks:
+      - globegenius-network-dev
+
+  globegenius-redis-dev:
+    image: redis:7.2-alpine
+    container_name: globegenius-redis-dev
+    ports:
+      - "6381:6379"
+    volumes:
+      - globegenius-redis-data-dev:/data
+    restart: unless-stopped
+    networks:
+      - globegenius-network-dev
+
+volumes:
+  globegenius-mongo-data-dev:
+  globegenius-redis-data-dev:
+
+networks:
+  globegenius-network-dev:
+    driver: bridge 

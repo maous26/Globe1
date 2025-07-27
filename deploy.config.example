@@ -1,0 +1,24 @@
+# GlobeGenius VPS Configuration
+# Copy this file to deploy.config and update with your values
+
+# VPS Connection Details
+VPS_HOST="your-vps-ip-address"
+VPS_USER="root"
+VPS_PATH="/opt/globegenius"
+
+# Domain Configuration
+PROD_FRONTEND_DOMAIN="app.globegenius.com"
+PROD_API_DOMAIN="api.globegenius.com"
+DEV_FRONTEND_DOMAIN="dev.globegenius.com"
+DEV_API_DOMAIN="dev-api.globegenius.com"
+
+# Backup Configuration
+BACKUP_RETENTION_DAYS=30
+BACKUP_S3_BUCKET=""  # Optional: S3 bucket for offsite backups
+
+# Monitoring Configuration
+MONITORING_EMAIL="admin@globegenius.com"
+SLACK_WEBHOOK=""  # Optional: Slack notifications
+
+# SSL Configuration
+CERTBOT_EMAIL="admin@globegenius.com" 
