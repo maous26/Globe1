@@ -17,7 +17,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
       - EMAIL_FROM=${EMAIL_FROM}
-      - FRONTEND_URL=https://dev.globegenius.com
+      - FRONTEND_URL=https://dev.globegenius.app
     ports:
       - "3101:3001"
     depends_on:
@@ -38,7 +38,7 @@ services:
     ports:
       - "3100:80"
     environment:
-      - REACT_APP_API_URL=https://dev-api.globegenius.com
+      - REACT_APP_API_URL=https://dev-api.globegenius.app
       - REACT_APP_ENV=development
     restart: unless-stopped
     networks:
